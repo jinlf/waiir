@@ -1,4 +1,5 @@
 use std::str;
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[warn(dead_code)]
@@ -43,10 +44,12 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, ch: &str) -> Token {
+    pub fn new(token_type: TokenType, ch: char) -> Token {
+        let mut s = String::new();
+        s.push(ch);
         Token {
             tk_type: token_type,
-            literal: String::from(ch),
+            literal: s,
         }
     }
     fn lookup_ident(ident: &str) -> TokenType {
@@ -63,20 +66,22 @@ impl Token {
     }
 }
 
-pub struct Lexer<'a> {
-    input: &'a str,
+pub struct Lexer {
+    input: String,
     position: usize,      // current position in input (points to current char)
     read_position: usize, // current reading position in input (after current char)
-    pub ch: &'a str,      // current char under examination
+    pub ch: char,         // current char under examination
 }
 
-impl<'a> Lexer<'a> {
+const NIL: char = 0 as char;
+
+impl Lexer {
     pub fn new(input: &str) -> Lexer {
         let mut l: Lexer = Lexer {
-            input: input,
+            input: String::from_str(input).unwrap(),
             position: 0,
             read_position: 0,
-            ch: input,
+            ch: NIL,
         };
         l.read_char();
         l
@@ -85,59 +90,67 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Token {
         let mut tok: Token;
         self.skip_whitespace();
-        if self.ch == &self.input[self.input.len()..] {
-            tok = Token::new(TokenType::EOF, self.ch);
-        } else {
-            match self.ch.chars().nth(0).unwrap() {
-                '=' => {
-                    tok = {
-                        let ch = self.peek_char();
-                        if ch.len() > 0 && ch.chars().nth(0).unwrap() == '=' {
-                            let tk = Token::new(TokenType::EQ, self.ch.get(..2).unwrap());
-                            self.read_position += 1;
-                            tk
-                        } else {
-                            Token::new(TokenType::ASSIGN, self.ch.get(..1).unwrap())
-                        }
-                    }
-                }
-                ';' => tok = Token::new(TokenType::SEMICOLON, self.ch.get(..1).unwrap()),
-                '(' => tok = Token::new(TokenType::LPAREN, self.ch.get(..1).unwrap()),
-                ')' => tok = Token::new(TokenType::RPAREN, self.ch.get(..1).unwrap()),
-                ',' => tok = Token::new(TokenType::COMMA, self.ch.get(..1).unwrap()),
-                '+' => tok = Token::new(TokenType::PLUS, self.ch.get(..1).unwrap()),
-                '-' => tok = Token::new(TokenType::MINUS, self.ch.get(..1).unwrap()),
-                '!' => {
-                    tok = {
-                        let ch = self.peek_char();
-                        if ch.len() > 0 && ch.chars().nth(0).unwrap() == '=' {
-                            let tk = Token::new(TokenType::NOTEQ, self.ch.get(..2).unwrap());
-                            self.read_position += 1;
-                            tk
-                        } else {
-                            Token::new(TokenType::BANG, self.ch.get(..1).unwrap())
-                        }
-                    }
-                }
-                '/' => tok = Token::new(TokenType::SLASH, self.ch.get(..1).unwrap()),
-                '*' => tok = Token::new(TokenType::ASTERISK, self.ch.get(..1).unwrap()),
-                '<' => tok = Token::new(TokenType::LT, self.ch.get(..1).unwrap()),
-                '>' => tok = Token::new(TokenType::GT, self.ch.get(..1).unwrap()),
-                '{' => tok = Token::new(TokenType::LBRACE, self.ch.get(..1).unwrap()),
-                '}' => tok = Token::new(TokenType::RBRACE, self.ch.get(..1).unwrap()),
-                _ => {
-                    if self.ch.chars().nth(0).unwrap().is_ascii_alphabetic() {
-                        tok = Token::new(TokenType::IDENT, self.ch);
-                        tok.literal = String::from(self.read_identifier());
-                        tok.tk_type = Token::lookup_ident(&tok.literal);
-                        return tok; // need not read_char, show return now
-                    } else if self.ch.chars().nth(0).unwrap().is_ascii_digit() {
-                        tok = Token::new(TokenType::INT, self.ch);
-                        tok.literal = String::from(self.read_number());
-                        return tok; // need not read_char, show return now
+        match self.ch {
+            '=' => {
+                tok = {
+                    let ch = self.peek_char();
+                    if ch == '=' {
+                        let mut tk = Token::new(TokenType::EQ, self.ch);
+                        let mut s = String::new();
+                        s.push(self.ch);
+                        s.push(ch);
+                        tk.literal = s;
+                        self.read_position += 1;
+                        tk
                     } else {
-                        tok = Token::new(TokenType::ILLEGAL, self.ch)
+                        Token::new(TokenType::ASSIGN, self.ch)
                     }
+                }
+            }
+            ';' => tok = Token::new(TokenType::SEMICOLON, self.ch),
+            '(' => tok = Token::new(TokenType::LPAREN, self.ch),
+            ')' => tok = Token::new(TokenType::RPAREN, self.ch),
+            ',' => tok = Token::new(TokenType::COMMA, self.ch),
+            '+' => tok = Token::new(TokenType::PLUS, self.ch),
+            '-' => tok = Token::new(TokenType::MINUS, self.ch),
+            '!' => {
+                tok = {
+                    let ch = self.peek_char();
+                    if ch == '=' {
+                        let mut tk = Token::new(TokenType::NOTEQ, self.ch);
+                        let mut s = String::new();
+                        s.push(self.ch);
+                        s.push(ch);
+                        tk.literal = s;
+                        self.read_position += 1;
+                        tk
+                    } else {
+                        Token::new(TokenType::BANG, self.ch)
+                    }
+                }
+            }
+            '/' => tok = Token::new(TokenType::SLASH, self.ch),
+            '*' => tok = Token::new(TokenType::ASTERISK, self.ch),
+            '<' => tok = Token::new(TokenType::LT, self.ch),
+            '>' => tok = Token::new(TokenType::GT, self.ch),
+            '{' => tok = Token::new(TokenType::LBRACE, self.ch),
+            '}' => tok = Token::new(TokenType::RBRACE, self.ch),
+            NIL => {
+                tok = Token::new(TokenType::EOF, self.ch);
+                tok.literal = String::new();
+            }
+            _ => {
+                if self.ch.is_ascii_alphabetic() {
+                    tok = Token::new(TokenType::IDENT, self.ch);
+                    tok.literal = String::from(self.read_identifier());
+                    tok.tk_type = Token::lookup_ident(&tok.literal);
+                    return tok; // need not read_char, show return now
+                } else if self.ch.is_ascii_digit() {
+                    tok = Token::new(TokenType::INT, self.ch);
+                    tok.literal = String::from(self.read_number());
+                    return tok; // need not read_char, show return now
+                } else {
+                    tok = Token::new(TokenType::ILLEGAL, self.ch)
                 }
             }
         }
@@ -147,52 +160,48 @@ impl<'a> Lexer<'a> {
 
     fn skip_whitespace(&mut self) {
         loop {
-            if self.ch.len() > 0 {
-                match self.ch.chars().nth(0).unwrap() {
-                    ' ' | '\t' | '\n' | '\r' => {
-                        self.read_char();
-                    }
-                    _ => {
-                        return;
-                    }
+            match self.ch {
+                ' ' | '\t' | '\n' | '\r' => {
+                    self.read_char();
                 }
-            } else {
-                return;
+                _ => {
+                    return;
+                }
             }
         }
     }
 
-    fn read_identifier(&mut self) -> &str {
+    fn read_identifier(&mut self) -> String {
         let position = self.position;
-        while self.ch.chars().nth(0).unwrap().is_ascii_alphabetic() {
+        while self.ch.is_ascii_alphabetic() {
             self.read_char();
         }
-        &self.input[position..self.position]
+        String::from_str(&self.input[position..self.position]).unwrap()
     }
 
-    fn read_number(&mut self) -> &str {
+    fn read_number(&mut self) -> String {
         let position = self.position;
-        while self.ch.chars().nth(0).unwrap().is_ascii_digit() {
+        while self.ch.is_ascii_digit() {
             self.read_char();
         }
-        &self.input[position..self.position]
+        String::from_str(&self.input[position..self.position]).unwrap()
     }
 
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
-            self.ch = &self.input[self.input.len()..]; // point to end
+            self.ch = NIL;
         } else {
-            self.ch = &self.input[self.read_position..];
+            self.ch = self.input.chars().nth(self.read_position).unwrap()
         }
         self.position = self.read_position;
         self.read_position += 1;
     }
 
-    fn peek_char(&mut self) -> &str {
+    fn peek_char(&mut self) -> char {
         if self.read_position >= self.input.len() {
-            &self.input[self.input.len()..] // point to end
+            NIL
         } else {
-            &self.input[self.read_position..self.read_position + 1]
+            self.input.chars().nth(self.read_position).unwrap()
         }
     }
 }

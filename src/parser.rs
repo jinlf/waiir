@@ -2,23 +2,21 @@ use super::ast::*;
 use super::lexer::*;
 
 struct Parser<'a> {
-    l: &'a mut Lexer<'a>,
+    l: &'a mut Lexer,
     cur_token: Token,
     peek_token: Token,
 }
 
 impl<'a> Parser<'a> {
-    fn new(lex: &'a mut Lexer<'a>) -> Parser<'a> {
-        Parser {
+    fn new(lex: &'a mut Lexer) -> Parser {
+        let mut p = Parser {
             l: lex,
-            cur_token: Token::new(TokenType::ILLEGAL,""),
-            peek_token: Token::new(TokenType::ILLEGAL,""),
-        }
-    }
-
-    fn init(&mut self) {
-        self.next_token();
-        self.next_token();
+            cur_token: Token::new(TokenType::ILLEGAL, 0 as char),
+            peek_token: Token::new(TokenType::ILLEGAL, 0 as char),
+        };
+        p.next_token();
+        p.next_token();
+        p
     }
 
     fn next_token(&mut self) {
@@ -27,7 +25,67 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_program(&mut self) -> Option<Program> {
-        None
+        let mut program = Program {
+            statements: Vec::new(),
+        };
+        while self.cur_token.tk_type != TokenType::EOF {
+            match self.parse_statement() {
+                Some(stmt) => {
+                    program.statements.push(stmt);
+                }
+                _ => {}
+            }
+            self.next_token();
+        }
+        Some(program)
+    }
+
+    fn parse_statement(&mut self) -> Option<Box<dyn Statement>> {
+        match self.cur_token.tk_type {
+            TokenType::LET => self.parse_let_statement(),
+            _ => None,
+        }
+    }
+
+    fn parse_let_statement(&mut self) -> Option<Box<dyn Statement>> {
+        let mut stmt = LetStatement {
+            token: self.cur_token.clone(),
+            name: None,
+            value: None,
+        };
+
+        if !self.expect_peek(TokenType::IDENT) {
+            return None;
+        }
+        stmt.name = Some(Identifier {
+            token: self.cur_token.clone(),
+            value: self.cur_token.literal.clone(),
+        });
+
+        //TODO
+
+        if !self.expect_peek(TokenType::ASSIGN) {
+            return None;
+        }
+        while !self.cur_token_is(TokenType::SEMICOLON) {
+            self.next_token();
+        }
+        return Some(Box::new(stmt) as Box<dyn Statement>);
+    }
+
+    fn cur_token_is(&self, t: TokenType) -> bool {
+        self.cur_token.tk_type == t
+    }
+    fn peek_token_is(&self, t: TokenType) -> bool {
+        self.peek_token.tk_type == t
+    }
+    fn expect_peek(&mut self, t: TokenType) -> bool {
+        if self.peek_token_is(t) {
+            self.next_token();
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -44,7 +102,47 @@ mod tests {
     ";
         let mut l = Lexer::new(input);
         let mut p = Parser::new(&mut l);
-        p.init();
-        p.parse_program().unwrap();
+        match p.parse_program() {
+            Some(program) => {
+                assert!(
+                    program.statements.len() == 3,
+                    "program.statements does not contain 3 statements. got={}",
+                    program.statements.len()
+                );
+                let tests = ["x", "y", "foobar"];
+                for (i, name) in tests.iter().enumerate() {
+                    let s = &program.statements[i];
+                    assert!(
+                        s.token_literal() == "let",
+                        "s.token_literal not 'let'. got={}",
+                        s.token_literal()
+                    );
+                    let let_stmt = s.as_any().downcast_ref::<LetStatement>();
+                    match let_stmt {
+                        Some(let_stmt) => match &let_stmt.name {
+                            Some(identifier) => {
+                                assert!(
+                                    identifier.value == *name,
+                                    "let_stmt.name.value not '{}'. got={}",
+                                    name,
+                                    identifier.value
+                                );
+                                assert!(
+                                    identifier.token_literal() == *name,
+                                    "s.name not '{}'. got={}",
+                                    name,
+                                    identifier.token_literal()
+                                );
+                            }
+                            _ => {}
+                        },
+                        _ => assert!(false, "s not ast.LetStatement. got={}", s),
+                    }
+                }
+            }
+            _ => {
+                assert!(false, "parse_program() returned nil");
+            }
+        }
     }
 }

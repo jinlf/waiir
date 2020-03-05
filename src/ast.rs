@@ -1,61 +1,79 @@
 use super::lexer::Token;
+use std::fmt::*;
 
-trait Node {
-    fn token_literal(&mut self) -> &str;
+pub trait Node: std::fmt::Display {
+    fn token_literal(&self) -> &str;
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
-trait Statement : Node {
-    fn statement_node(&mut self);
+pub trait Statement: Node {
+    fn statement_node(&self);
 }
 
-trait Expression : Node {
-    fn expression_node(&mut self);
+pub trait Expression: Node {
+    fn expression_node(&self);
 }
 
 pub struct Program {
-    statments: Vec<Box<dyn Statement>>,
+    pub statements: Vec<Box<dyn Statement>>,
 }
 impl Node for Program {
-    fn token_literal(&mut self) -> &str {
-        if self.statments.len() > 0 {
-            self.statments[0].token_literal()
+    fn token_literal(&self) -> &str {
+        if self.statements.len() > 0 {
+            self.statements[0].token_literal()
         } else {
             ""
         }
     }
-}
-
-struct LetStatement<'a> {
-    token: Token,
-    name: &'a Identifier,
-    value: dyn Expression,
-}
-impl<'a> Node for LetStatement<'a> {
-    fn token_literal(&mut self) -> &str {
-        &self.token.literal[..]
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
-impl<'a> Statement for LetStatement<'a> {
-    fn statement_node(&mut self) {}
+impl Display for Program {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Program")
+    }
 }
 
-struct Identifier {
-    token: Token,
-    value: String
+pub struct LetStatement {
+    pub token: Token,
+    pub name: Option<Identifier>,
+    pub value: Option<Box<dyn Expression>>,
+}
+impl Node for LetStatement {
+    fn token_literal(&self) -> &str {
+        &self.token.literal[..]
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+impl Display for LetStatement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "LetStatement")
+    }
+}
+impl Statement for LetStatement {
+    fn statement_node(&self) {}
+}
+
+pub struct Identifier {
+    pub token: Token,
+    pub value: String,
 }
 impl Expression for Identifier {
-    fn expression_node(&mut self) {
-
-    }   
+    fn expression_node(&self) {}
 }
 impl Node for Identifier {
-    fn token_literal(&mut self) -> &str {
+    fn token_literal(&self) -> &str {
         &self.token.literal[..]
-    }   
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
-
-pub fn new_program_ast_node() -> Program {
-    Program{
-        statments:Vec::new(),
+impl Display for Identifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Identifier")
     }
 }
