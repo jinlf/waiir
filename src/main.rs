@@ -1,7 +1,5 @@
-mod ast;
-mod lexer;
-mod parser;
 mod repl;
+mod lexer;
 
 fn main() {
     println!("Hello! This is the Monkey programming language!");
