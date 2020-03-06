@@ -1,8 +1,8 @@
 use super::ast::*;
 use super::lexer::*;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 type PrefixParseFn = dyn Fn(&Parser) -> Option<Box<dyn Expression>>;
 type InfixParseFn = dyn Fn(&mut Parser, dyn Expression) -> Option<Box<dyn Expression>>;
@@ -211,4 +211,3 @@ impl<'a> Parser<'a> {
         }
     }
 }
-

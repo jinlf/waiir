@@ -1,8 +1,8 @@
 extern crate waiir;
 
-use waiir::parser::*;
 use waiir::ast::*;
 use waiir::lexer::*;
+use waiir::parser::*;
 
 fn check_parser_errors(p: &Parser) {
     let errors = &p.get_errors().borrow();
@@ -212,4 +212,5 @@ fn test_integer_literal_expression() {
         _ => {
             assert!(false, "exp not ast.IntegerLiteral. got={}", stmt);
         }
-    }}
+    }
+}
