@@ -5,7 +5,7 @@ use waiir::lexer::*;
 use waiir::parser::*;
 
 fn check_parser_errors(p: &Parser) {
-    let errors = &p.get_errors().borrow();
+    let errors = &p.get_errors();
     if errors.len() == 0 {
         return;
     }
@@ -23,8 +23,8 @@ fn test_let_statements() {
     let y = 10;
     let foobar = 838383;
     ";
-    let l = Lexer::new(input);
-    let p = Parser::new(l);
+    let mut l = Lexer::new(input);
+    let mut p = Parser::new(&mut l);
     let program = p.parse_program().expect("parse_program() returned None");
     check_parser_errors(&p);
     assert!(
@@ -71,8 +71,8 @@ fn test_return_statements() {
         return 10;
         return 993322;
         ";
-    let l = Lexer::new(&input);
-    let p = Parser::new(l);
+    let mut l = Lexer::new(&input);
+    let mut p = Parser::new(&mut l);
 
     let program = p.parse_program().expect("parse_program() returned None");
 
@@ -130,8 +130,8 @@ fn test_string() {
 #[test]
 fn test_identifier_expresion() {
     let input = "foobar;";
-    let l = Lexer::new(input);
-    let p = Parser::new(l);
+    let mut l = Lexer::new(input);
+    let mut p = Parser::new(&mut l);
     let program = p.parse_program().expect("parse_program() returned nil");
     check_parser_errors(&mut p);
     assert!(
@@ -174,8 +174,8 @@ fn test_identifier_expresion() {
 #[test]
 fn test_integer_literal_expression() {
     let input = "5;";
-    let l = Lexer::new(input);
-    let p = Parser::new(l);
+    let mut l = Lexer::new(input);
+    let mut p = Parser::new(&mut l);
     let program = p.parse_program().expect("parse_program() returned nil");
     check_parser_errors(&mut p);
     assert!(
@@ -204,8 +204,8 @@ fn test_integer_literal_expression() {
 fn test_parsing_prefix_expressions() {
     let prefix_tests = [("!5;", "!", 5), ("-15;", "-", 15)];
     for tt in prefix_tests.iter() {
-        let l = Lexer::new(tt.0);
-        let p = Parser::new(l);
+        let mut l = Lexer::new(tt.0);
+        let mut p = Parser::new(&mut l);
         let program = p.parse_program().expect("parse_program() returned None");
         check_parser_errors(&mut p);
         assert!(

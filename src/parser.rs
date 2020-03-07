@@ -1,19 +1,14 @@
 use super::ast::*;
 use super::lexer::*;
-use std::collections::HashMap;
-
-type PrefixParseFn = dyn Fn(&mut Parser) -> Option<Box<dyn Expression>>;
-type InfixParseFn = dyn Fn(&mut Parser, dyn Expression) -> Option<Box<dyn Expression>>;
 
 pub struct Parser<'a> {
     l: &'a mut Lexer<'a>,
     cur_token: Token,
     peek_token: Token,
     errors: Vec<Box<String>>,
-    prefix_parse_fns: HashMap<TokenType, Box<PrefixParseFn>>,
-    infix_parse_fns: HashMap<TokenType, Box<InfixParseFn>>,
 }
 
+#[allow(dead_code)]
 enum Precedence {
     LOWEST,
     EQUALS,
@@ -31,25 +26,7 @@ impl<'a> Parser<'a> {
             cur_token: Token::new(TokenType::ILLEGAL, 0 as char),
             peek_token: Token::new(TokenType::ILLEGAL, 0 as char),
             errors: Vec::new(),
-            prefix_parse_fns: HashMap::new(),
-            infix_parse_fns: HashMap::new(),
         };
-        p.register_prefix(
-            TokenType::IDENT,
-            Box::new(|parser: &mut Parser| Parser::parse_identifier(parser)),
-        );
-        p.register_prefix(
-            TokenType::INT,
-            Box::new(|parser: &mut Parser| Parser::parse_integer_literal(parser)),
-        );
-        p.register_prefix(
-            TokenType::BANG,
-            Box::new(|parser: &mut Parser| Parser::parse_prefix_expression(parser)),
-        );
-        p.register_prefix(
-            TokenType::MINUS,
-            Box::new(|parser: &mut Parser| Parser::parse_prefix_expression(parser)),
-        );
         p.next_token();
         p.next_token();
         p
@@ -75,24 +52,16 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_errors(&self) -> &Vec<Box<String>> {
         &self.errors
     }
     fn peek_error(&mut self, t: TokenType) {
         let msg = format!(
             "expected next token to be {:?}, got {:?} instead",
-            t,
-            self.peek_token.tk_type
+            t, self.peek_token.tk_type
         );
         self.errors.push(Box::new(msg));
-    }
-
-    fn register_prefix(&mut self, token_type: TokenType, func: Box<PrefixParseFn>) {
-        println!("register_prefix for {:?}", token_type);
-        self.prefix_parse_fns.insert(token_type, func);
-    }
-    fn register_infix(&mut self, token_type: TokenType, func: Box<InfixParseFn>) {
-        self.infix_parse_fns.insert(token_type, func);
     }
 
     pub fn parse_program(&mut self) -> Option<Program> {
@@ -183,11 +152,20 @@ impl<'a> Parser<'a> {
 
     fn parse_expression(&mut self, _precedence: Precedence) -> Option<Box<dyn Expression>> {
         println!("parse_expression: {:?}", self.cur_token);
-        match self.prefix_parse_fns.get(&self.cur_token.tk_type) {
-            Some(prefix) => {
-                let left_exp = prefix(self);
-                left_exp
-            }
+        // match self.prefix_parse_fns.get(&self.cur_token.tk_type) {
+        //     Some(prefix) => {
+        //         prefix(self)
+        //     }
+        //     _ => {
+        //         self.no_prefix_parse_fn_error(self.cur_token.tk_type);
+        //         None
+        //     }
+        // }
+        match self.cur_token.tk_type {
+            TokenType::IDENT => self.parse_identifier(),
+            TokenType::INT => self.parse_integer_literal(),
+            TokenType::BANG => self.parse_prefix_expression(),
+            TokenType::MINUS => self.parse_prefix_expression(),
             _ => {
                 self.no_prefix_parse_fn_error(self.cur_token.tk_type);
                 None
@@ -195,7 +173,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_identifier(&self) -> Option<Box<dyn Expression>> {
+    fn parse_identifier(&mut self) -> Option<Box<dyn Expression>> {
         println!("parse_identifier: {:?}", self.cur_token);
         Some(Box::new(Identifier {
             token: self.cur_token.clone(),
@@ -216,10 +194,7 @@ impl<'a> Parser<'a> {
                 Some(Box::new(lit) as Box<dyn Expression>)
             }
             _ => {
-                let msg = format!(
-                    "could not parse {} as integer",
-                    self.cur_token.literal
-                );
+                let msg = format!("could not parse {} as integer", self.cur_token.literal);
                 self.errors.push(Box::new(msg));
                 None
             }

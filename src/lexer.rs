@@ -1,5 +1,4 @@
 #[derive(Debug, PartialEq, Copy, Clone, Hash)]
-#[warn(dead_code)]
 pub enum TokenType {
     ILLEGAL = 0,
     EOF,
