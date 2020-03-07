@@ -1,4 +1,4 @@
-use super::lexer;
+use super::lexer::*;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -14,10 +14,10 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
         fmt.flush().unwrap();
         let mut line = String::new();
         reader.read_line(&mut line).unwrap();
-        let mut l = lexer::Lexer::new(&mut line);
+        let mut l = Lexer::new(&mut line);
         loop {
             let tok = l.next_token();
-            if tok.tk_type == lexer::TokenType::EOF {
+            if tok.tk_type == TokenType::EOF {
                 break;
             }
             fmt.write_fmt(format_args!("{:?}\n", tok)).unwrap();

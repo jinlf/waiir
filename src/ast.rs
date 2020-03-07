@@ -185,3 +185,33 @@ impl Display for IntegerLiteral {
         write!(f, "IntegerLiteral")
     }
 }
+
+pub struct PrefixExpression {
+    pub token: Token,
+    pub operator: String,
+    pub right: Option<Box<dyn Expression>>,
+}
+impl Expression for PrefixExpression {
+    fn expression_node(&self) {}
+}
+impl Node for PrefixExpression {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn string(&self) -> String {
+        let mut out = String::new();
+        out.push_str("(");
+        out.push_str(&self.operator);
+        out.push_str(&self.right.as_ref().unwrap().string());
+        out.push_str(")");
+        out
+    }
+}
+impl Display for PrefixExpression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "PrefixExpression")
+    }
+}

@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq, Copy, Clone, Hash)]
 #[warn(dead_code)]
 pub enum TokenType {
-    ILLEGAL,
+    ILLEGAL = 0,
     EOF,
     // Identifiers + literals
     IDENT, // add, foobar, x, y, ...
@@ -10,7 +10,7 @@ pub enum TokenType {
     ASSIGN,
     PLUS,
     MINUS,
-    BANG,
+    BANG = 100,
     ASTERISK,
     SLASH,
     LT,

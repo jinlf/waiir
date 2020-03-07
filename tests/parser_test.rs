@@ -23,8 +23,8 @@ fn test_let_statements() {
     let y = 10;
     let foobar = 838383;
     ";
-    let mut l = Lexer::new(input);
-    let mut p = Parser::new(&mut l);
+    let l = Lexer::new(input);
+    let p = Parser::new(l);
     let program = p.parse_program().expect("parse_program() returned None");
     check_parser_errors(&p);
     assert!(
@@ -71,8 +71,8 @@ fn test_return_statements() {
         return 10;
         return 993322;
         ";
-    let mut l = Lexer::new(&input);
-    let mut p = Parser::new(&mut l);
+    let l = Lexer::new(&input);
+    let p = Parser::new(l);
 
     let program = p.parse_program().expect("parse_program() returned None");
 
@@ -130,8 +130,8 @@ fn test_string() {
 #[test]
 fn test_identifier_expresion() {
     let input = "foobar;";
-    let mut l = Lexer::new(input);
-    let mut p = Parser::new(&mut l);
+    let l = Lexer::new(input);
+    let p = Parser::new(l);
     let program = p.parse_program().expect("parse_program() returned nil");
     check_parser_errors(&mut p);
     assert!(
@@ -174,8 +174,8 @@ fn test_identifier_expresion() {
 #[test]
 fn test_integer_literal_expression() {
     let input = "5;";
-    let mut l = Lexer::new(input);
-    let mut p = Parser::new(&mut l);
+    let l = Lexer::new(input);
+    let p = Parser::new(l);
     let program = p.parse_program().expect("parse_program() returned nil");
     check_parser_errors(&mut p);
     assert!(
@@ -192,25 +192,74 @@ fn test_integer_literal_expression() {
         ));
     match &stmt.expression {
         Some(expression) => {
-            let literal = expression
-                .as_any()
-                .downcast_ref::<IntegerLiteral>()
-                .expect(&format!("exp not ast.IntegerLiteral. got={}", expression));
-            assert!(
-                literal.value == 5,
-                "literal.value not {}, got={}",
-                5,
-                literal.value
-            );
-            assert!(
-                literal.token_literal() == "5",
-                "literal.token_literal not {}, got={}",
-                "5",
-                literal.token_literal()
-            );
+            test_integer_literal(expression, 5);
         }
         _ => {
             assert!(false, "exp not ast.IntegerLiteral. got={}", stmt);
         }
     }
+}
+
+#[test]
+fn test_parsing_prefix_expressions() {
+    let prefix_tests = [("!5;", "!", 5), ("-15;", "-", 15)];
+    for tt in prefix_tests.iter() {
+        let l = Lexer::new(tt.0);
+        let p = Parser::new(l);
+        let program = p.parse_program().expect("parse_program() returned None");
+        check_parser_errors(&mut p);
+        assert!(
+            program.statements.len() == 1,
+            "program has not enough statements. got={}",
+            program.statements.len()
+        );
+        let stmt = program.statements[0]
+            .as_any()
+            .downcast_ref::<ExpressionStmt>()
+            .expect(&format!(
+                "program.statements[0] is not ast.ExpressionStmt. got={}",
+                program.statements[0]
+            ));
+        match &stmt.expression {
+            Some(expression) => {
+                let exp = expression
+                    .as_any()
+                    .downcast_ref::<PrefixExpression>()
+                    .expect(&format!(
+                        "stmt is not ast.PrefixExpression. got={}",
+                        expression
+                    ));
+                assert!(
+                    exp.operator == tt.1,
+                    "exp.operator is not '{}'. got={}",
+                    tt.1,
+                    exp.operator
+                );
+                let right = exp.right.as_ref().expect("exp.right is None");
+                test_integer_literal(&right, tt.2);
+            }
+            _ => {
+                assert!(false, "exp not ast.PrefixExpression. got={}", stmt);
+            }
+        }
+    }
+}
+
+fn test_integer_literal(il: &Box<dyn Expression>, value: i64) {
+    let literal = il
+        .as_any()
+        .downcast_ref::<IntegerLiteral>()
+        .expect(&format!("exp not ast.IntegerLiteral. got={}", il));
+    assert!(
+        literal.value == value,
+        "literal.value not {}, got={}",
+        value,
+        literal.value
+    );
+    assert!(
+        literal.token_literal() == value.to_string(),
+        "literal.token_literal not {}, got={}",
+        value,
+        literal.token_literal()
+    );
 }

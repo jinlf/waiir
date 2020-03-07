@@ -1,17 +1,15 @@
 use super::ast::*;
 use super::lexer::*;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
-type PrefixParseFn = dyn Fn(&Parser) -> Option<Box<dyn Expression>>;
+type PrefixParseFn = dyn Fn(&mut Parser) -> Option<Box<dyn Expression>>;
 type InfixParseFn = dyn Fn(&mut Parser, dyn Expression) -> Option<Box<dyn Expression>>;
 
 pub struct Parser<'a> {
     l: &'a mut Lexer<'a>,
     cur_token: Token,
     peek_token: Token,
-    errors: Rc<RefCell<Vec<Box<String>>>>,
+    errors: Vec<Box<String>>,
     prefix_parse_fns: HashMap<TokenType, Box<PrefixParseFn>>,
     infix_parse_fns: HashMap<TokenType, Box<InfixParseFn>>,
 }
@@ -32,17 +30,25 @@ impl<'a> Parser<'a> {
             l: lex,
             cur_token: Token::new(TokenType::ILLEGAL, 0 as char),
             peek_token: Token::new(TokenType::ILLEGAL, 0 as char),
-            errors: Rc::new(RefCell::new(Vec::new())),
+            errors: Vec::new(),
             prefix_parse_fns: HashMap::new(),
             infix_parse_fns: HashMap::new(),
         };
         p.register_prefix(
             TokenType::IDENT,
-            Box::new(|parser: &Parser| Parser::parse_identifier(parser)),
+            Box::new(|parser: &mut Parser| Parser::parse_identifier(parser)),
         );
         p.register_prefix(
             TokenType::INT,
-            Box::new(|parser: &Parser| Parser::parse_integer_literal(parser)),
+            Box::new(|parser: &mut Parser| Parser::parse_integer_literal(parser)),
+        );
+        p.register_prefix(
+            TokenType::BANG,
+            Box::new(|parser: &mut Parser| Parser::parse_prefix_expression(parser)),
+        );
+        p.register_prefix(
+            TokenType::MINUS,
+            Box::new(|parser: &mut Parser| Parser::parse_prefix_expression(parser)),
         );
         p.next_token();
         p.next_token();
@@ -69,15 +75,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn get_errors(&self) -> &RefCell<Vec<Box<String>>> {
+    pub fn get_errors(&self) -> &Vec<Box<String>> {
         &self.errors
     }
     fn peek_error(&mut self, t: TokenType) {
         let msg = format!(
             "expected next token to be {:?}, got {:?} instead",
-            t, self.peek_token.tk_type
+            t,
+            self.peek_token.tk_type
         );
-        self.errors.borrow_mut().push(Box::new(msg));
+        self.errors.push(Box::new(msg));
     }
 
     fn register_prefix(&mut self, token_type: TokenType, func: Box<PrefixParseFn>) {
@@ -89,7 +96,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_program(&mut self) -> Option<Program> {
-        println!("parse_program");
+        println!("parse_program: {:?}", self.cur_token);
         let mut program = Program {
             statements: Vec::new(),
         };
@@ -106,7 +113,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement(&mut self) -> Option<Box<dyn Statement>> {
-        println!("parse_statement");
+        println!("parse_statement: {:?}", self.cur_token);
         match self.cur_token.tk_type {
             TokenType::LET => self.parse_let_statement(),
             TokenType::RETURN => self.parse_return_statement(),
@@ -115,6 +122,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_let_statement(&mut self) -> Option<Box<dyn Statement>> {
+        println!("parse_let_statement: {:?}", self.cur_token);
         let mut stmt = LetStatement {
             token: self.cur_token.clone(),
             name: None,
@@ -141,6 +149,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return_statement(&mut self) -> Option<Box<dyn Statement>> {
+        println!("parse_return_statement: {:?}", self.cur_token);
         let stmt = ReturnStatement {
             token: self.cur_token.clone(),
             return_value: None,
@@ -158,11 +167,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression_statement(&mut self) -> Option<Box<dyn Statement>> {
-        println!("parse_expression_statement");
-        let stmt = ExpressionStmt {
+        println!("parse_expression_statement: {:?}", self.cur_token);
+        let mut stmt = ExpressionStmt {
             token: self.cur_token.clone(),
-            expression: self.parse_expression(Precedence::LOWEST),
+            expression: None,
         };
+
+        stmt.expression = self.parse_expression(Precedence::LOWEST);
 
         if self.peek_token_is(TokenType::SEMICOLON) {
             self.next_token();
@@ -171,28 +182,29 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self, _precedence: Precedence) -> Option<Box<dyn Expression>> {
-        println!("parse_expression");
+        println!("parse_expression: {:?}", self.cur_token);
         match self.prefix_parse_fns.get(&self.cur_token.tk_type) {
             Some(prefix) => {
-                println!("has callback");
-                prefix(self)
+                let left_exp = prefix(self);
+                left_exp
             }
             _ => {
-                println!("no callback");
+                self.no_prefix_parse_fn_error(self.cur_token.tk_type);
                 None
             }
         }
     }
 
     fn parse_identifier(&self) -> Option<Box<dyn Expression>> {
+        println!("parse_identifier: {:?}", self.cur_token);
         Some(Box::new(Identifier {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
         }))
     }
 
-    fn parse_integer_literal(&self) -> Option<Box<dyn Expression>> {
-        println!("parse_integer_literal");
+    fn parse_integer_literal(&mut self) -> Option<Box<dyn Expression>> {
+        println!("parse_integer_literal: {:?}", self.cur_token);
         let mut lit = IntegerLiteral {
             token: self.cur_token.clone(),
             value: 0,
@@ -204,10 +216,29 @@ impl<'a> Parser<'a> {
                 Some(Box::new(lit) as Box<dyn Expression>)
             }
             _ => {
-                let msg = format!("could not parse {} as integer", self.cur_token.literal);
-                self.errors.borrow_mut().push(Box::new(msg));
+                let msg = format!(
+                    "could not parse {} as integer",
+                    self.cur_token.literal
+                );
+                self.errors.push(Box::new(msg));
                 None
             }
         }
+    }
+
+    fn no_prefix_parse_fn_error(&mut self, t: TokenType) {
+        let msg = format!("no prefix parse function for {:?} found", t);
+        self.errors.push(Box::new(msg));
+    }
+
+    fn parse_prefix_expression(&mut self) -> Option<Box<dyn Expression>> {
+        let mut expression = PrefixExpression {
+            token: self.cur_token.clone(),
+            operator: self.cur_token.literal.clone(),
+            right: None,
+        };
+        self.next_token();
+        expression.right = self.parse_expression(Precedence::PREFIX);
+        Some(Box::new(expression))
     }
 }
