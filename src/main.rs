@@ -1,7 +1,4 @@
-mod ast;
-mod lexer;
-mod parser;
-mod repl;
+include!("lib.rs");
 
 fn main() {
     let mut l = lexer::Lexer::new("!5;");
