@@ -1,11 +1,11 @@
 use super::lexer::Token;
 use std::any::Any;
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::Debug;
 
-pub trait Node: Display {
+pub trait Node: Debug {
     fn token_literal(&self) -> &str;
-    fn as_any(&self) -> &dyn Any;
     fn string(&self) -> String;
+    fn as_any(&self) -> &dyn Any;
 }
 
 pub trait Statement: Node {
@@ -16,6 +16,7 @@ pub trait Expression: Node {
     fn expression_node(&self);
 }
 
+#[derive(Debug)]
 pub struct Program {
     pub statements: Vec<Box<dyn Statement>>,
 }
@@ -28,9 +29,6 @@ impl Node for Program {
             ""
         }
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn string(&self) -> String {
         let mut out = String::new();
         for s in self.statements.iter() {
@@ -38,13 +36,12 @@ impl Node for Program {
         }
         out
     }
-}
-impl Display for Program {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Program")
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
+#[derive(Debug)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Option<Identifier>,
@@ -57,9 +54,6 @@ impl Node for LetStatement {
     fn token_literal(&self) -> &str {
         &self.token.literal[..]
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn string(&self) -> String {
         let mut out = String::new();
         out.push_str(self.token_literal());
@@ -70,13 +64,12 @@ impl Node for LetStatement {
         out.push_str(";");
         out
     }
-}
-impl Display for LetStatement {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "LetStatement")
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
+#[derive(Debug)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
@@ -88,21 +81,17 @@ impl Node for Identifier {
     fn token_literal(&self) -> &str {
         &self.token.literal[..]
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn string(&self) -> String {
         let mut out = String::new();
         out.push_str(&self.value);
         out
     }
-}
-impl Display for Identifier {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Identifier")
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
+#[derive(Debug)]
 pub struct ReturnStatement {
     pub token: Token,
     pub return_value: Option<Box<dyn Expression>>,
@@ -113,9 +102,6 @@ impl Statement for ReturnStatement {
 impl Node for ReturnStatement {
     fn token_literal(&self) -> &str {
         &self.token.literal
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
     fn string(&self) -> String {
         let mut out = String::new();
@@ -130,13 +116,12 @@ impl Node for ReturnStatement {
         out.push_str(";");
         out
     }
-}
-impl Display for ReturnStatement {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "ReturnStatement")
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
+#[derive(Debug)]
 pub struct ExpressionStmt {
     pub token: Token,
     pub expression: Option<Box<dyn Expression>>,
@@ -148,20 +133,16 @@ impl Node for ExpressionStmt {
     fn token_literal(&self) -> &str {
         &self.token.literal
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn string(&self) -> String {
         //TODO
         String::new()
     }
-}
-impl Display for ExpressionStmt {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "ExpressionStmt")
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
+#[derive(Debug)]
 pub struct IntegerLiteral {
     pub token: Token,
     pub value: i64,
@@ -173,19 +154,15 @@ impl Node for IntegerLiteral {
     fn token_literal(&self) -> &str {
         &self.token.literal
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn string(&self) -> String {
         self.token.literal.clone()
     }
-}
-impl Display for IntegerLiteral {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "IntegerLiteral")
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
+#[derive(Debug)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
@@ -198,9 +175,6 @@ impl Node for PrefixExpression {
     fn token_literal(&self) -> &str {
         &self.token.literal
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn string(&self) -> String {
         let mut out = String::new();
         out.push_str("(");
@@ -209,10 +183,8 @@ impl Node for PrefixExpression {
         out.push_str(")");
         out
     }
-}
-impl Display for PrefixExpression {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "PrefixExpression")
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

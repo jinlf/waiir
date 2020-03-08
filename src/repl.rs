@@ -1,4 +1,4 @@
-use super::lexer::*;
+use super::lexer::{Lexer, TokenType};
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::BufWriter;
