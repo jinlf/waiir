@@ -1,13 +1,16 @@
 use super::ast::*;
 use super::lexer::*;
+use std::collections::HashMap;
 
 pub struct Parser<'a> {
     l: &'a mut Lexer<'a>,
     cur_token: Token,
     peek_token: Token,
     errors: Vec<Box<String>>,
+    precedences: HashMap<TokenType, Precedence>,
 }
 
+#[derive(PartialOrd, PartialEq, Copy, Clone)]
 #[allow(dead_code)]
 enum Precedence {
     LOWEST,
@@ -26,9 +29,23 @@ impl<'a> Parser<'a> {
             cur_token: Token::new(TokenType::ILLEGAL, 0 as char),
             peek_token: Token::new(TokenType::ILLEGAL, 0 as char),
             errors: Vec::new(),
+            precedences: HashMap::new(),
         };
+        p.precedences.insert(TokenType::EQ, Precedence::EQUALS);
+        p.precedences.insert(TokenType::NOTEQ, Precedence::EQUALS);
+        p.precedences
+            .insert(TokenType::LT, Precedence::LESSGEREATER);
+        p.precedences
+            .insert(TokenType::GT, Precedence::LESSGEREATER);
+        p.precedences.insert(TokenType::PLUS, Precedence::SUM);
+        p.precedences.insert(TokenType::MINUS, Precedence::SUM);
+        p.precedences.insert(TokenType::SLASH, Precedence::PRODUCT);
+        p.precedences
+            .insert(TokenType::ASTERISK, Precedence::PRODUCT);
+
         p.next_token();
         p.next_token();
+
         p
     }
 
@@ -62,6 +79,19 @@ impl<'a> Parser<'a> {
             t, self.peek_token.tk_type
         );
         self.errors.push(Box::new(msg));
+    }
+
+    fn peek_precedence(&self) -> Precedence {
+        match self.precedences.get(&self.peek_token.tk_type) {
+            Some(p) => *p,
+            _ => Precedence::LOWEST,
+        }
+    }
+    fn cur_precedence(&self) -> Precedence {
+        match self.precedences.get(&self.cur_token.tk_type) {
+            Some(p) => *p,
+            _ => Precedence::LOWEST,
+        }
     }
 
     pub fn parse_program(&mut self) -> Option<Program> {
@@ -150,27 +180,68 @@ impl<'a> Parser<'a> {
         Some(Box::new(stmt))
     }
 
-    fn parse_expression(&mut self, _precedence: Precedence) -> Option<Box<dyn Expression>> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn Expression>> {
         println!("parse_expression: {:?}", self.cur_token);
-        // match self.prefix_parse_fns.get(&self.cur_token.tk_type) {
-        //     Some(prefix) => {
-        //         prefix(self)
-        //     }
-        //     _ => {
-        //         self.no_prefix_parse_fn_error(self.cur_token.tk_type);
-        //         None
-        //     }
-        // }
+        let mut left_exp: Option<Box<dyn Expression>>;
         match self.cur_token.tk_type {
-            TokenType::IDENT => self.parse_identifier(),
-            TokenType::INT => self.parse_integer_literal(),
-            TokenType::BANG => self.parse_prefix_expression(),
-            TokenType::MINUS => self.parse_prefix_expression(),
+            TokenType::IDENT => {
+                left_exp = self.parse_identifier();
+            }
+            TokenType::INT => {
+                left_exp = self.parse_integer_literal();
+            }
+            TokenType::BANG => {
+                left_exp = self.parse_prefix_expression();
+            }
+            TokenType::MINUS => {
+                left_exp = self.parse_prefix_expression();
+            }
             _ => {
                 self.no_prefix_parse_fn_error(self.cur_token.tk_type);
-                None
+                return None;
+            }
+        };
+
+        while !self.peek_token_is(TokenType::SEMICOLON) && precedence < self.peek_precedence() {
+            match self.peek_token.tk_type {
+                TokenType::PLUS => {
+                    self.next_token();
+                    left_exp = self.parse_infix_expression(left_exp);
+                }
+                TokenType::MINUS => {
+                    self.next_token();
+                    left_exp = self.parse_infix_expression(left_exp);
+                }
+                TokenType::SLASH => {
+                    self.next_token();
+                    left_exp = self.parse_infix_expression(left_exp);
+                }
+                TokenType::ASTERISK => {
+                    self.next_token();
+                    left_exp = self.parse_infix_expression(left_exp);
+                }
+                TokenType::EQ => {
+                    self.next_token();
+                    left_exp = self.parse_infix_expression(left_exp);
+                }
+                TokenType::NOTEQ => {
+                    self.next_token();
+                    left_exp = self.parse_infix_expression(left_exp);
+                }
+                TokenType::LT => {
+                    self.next_token();
+                    left_exp = self.parse_infix_expression(left_exp);
+                }
+                TokenType::GT => {
+                    self.next_token();
+                    left_exp = self.parse_infix_expression(left_exp);
+                }
+                _ => {
+                    return left_exp;
+                }
             }
         }
+        left_exp
     }
 
     fn parse_identifier(&mut self) -> Option<Box<dyn Expression>> {
@@ -214,6 +285,23 @@ impl<'a> Parser<'a> {
         };
         self.next_token();
         expression.right = self.parse_expression(Precedence::PREFIX);
+        Some(Box::new(expression))
+    }
+
+    fn parse_infix_expression(
+        &mut self,
+        left: Option<Box<dyn Expression>>,
+    ) -> Option<Box<dyn Expression>> {
+        let mut expression = InfixExpression {
+            token: self.cur_token.clone(),
+            left: left,
+            operator: self.cur_token.literal.clone(),
+            right: None,
+        };
+
+        let precedence = self.cur_precedence();
+        self.next_token();
+        expression.right = self.parse_expression(precedence);
         Some(Box::new(expression))
     }
 }

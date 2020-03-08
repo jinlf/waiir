@@ -107,12 +107,7 @@ impl Node for ReturnStatement {
         let mut out = String::new();
         out.push_str(self.token_literal());
         out.push_str(" ");
-        match &self.return_value {
-            Some(return_value) => {
-                out.push_str(&return_value.string());
-            }
-            _ => {}
-        }
+        out.push_str(&self.return_value.as_ref().unwrap().string());
         out.push_str(";");
         out
     }
@@ -202,15 +197,15 @@ impl Node for InfixExpression {
     fn token_literal(&self) -> &str {
         &self.token.literal
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn string(&self) -> String {
         let mut out = String::new();
         out.push_str("(");
-        out.push_str(&self.left.unwrap().string());
-        out.push_str(&self.right.unwrap().string());
+        out.push_str(&self.left.as_ref().unwrap().string());
+        out.push_str(&self.right.as_ref().unwrap().string());
         out.push_str(")");
         out
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
