@@ -129,8 +129,10 @@ impl Node for ExpressionStmt {
         &self.token.literal
     }
     fn string(&self) -> String {
-        //TODO
-        String::new()
+        match &self.expression {
+            Some(exp) => exp.string(),
+            _ => String::new(),
+        }
     }
     fn as_any(&self) -> &dyn Any {
         self
@@ -201,9 +203,32 @@ impl Node for InfixExpression {
         let mut out = String::new();
         out.push_str("(");
         out.push_str(&self.left.as_ref().unwrap().string());
+        out.push_str(" ");
+        out.push_str(&self.operator);
+        out.push_str(" ");
         out.push_str(&self.right.as_ref().unwrap().string());
         out.push_str(")");
         out
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct Boolean {
+    pub token: Token,
+    pub value: bool,
+}
+impl Expression for Boolean {
+    fn expression_node(&self) {}
+}
+impl Node for Boolean {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+    fn string(&self) -> String {
+        self.token.literal.clone()
     }
     fn as_any(&self) -> &dyn Any {
         self

@@ -1,5 +1,6 @@
 extern crate waiir;
 
+use std::any::Any;
 use waiir::ast::*;
 use waiir::lexer::*;
 use waiir::parser::*;
@@ -202,7 +203,12 @@ fn test_integer_literal_expression() {
 
 #[test]
 fn test_parsing_prefix_expressions() {
-    let prefix_tests = [("!5;", "!", 5), ("-15;", "-", 15)];
+    let prefix_tests: [(&str, &str, Box<dyn Any>); 4] = [
+        ("!5;", "!", Box::new(5 as i64)),
+        ("-15;", "-", Box::new(15 as i64)),
+        ("!true", "!", Box::new(true)),
+        ("!false", "!", Box::new(false)),
+    ];
     for tt in prefix_tests.iter() {
         let mut l = Lexer::new(tt.0);
         let mut p = Parser::new(&mut l);
@@ -236,7 +242,7 @@ fn test_parsing_prefix_expressions() {
                     exp.operator
                 );
                 let right = exp.right.as_ref().expect("exp.right is None");
-                test_integer_literal(&right, tt.2);
+                test_literal_expression(right, &tt.2);
             }
             _ => {
                 assert!(false, "exp not ast.PrefixExpression. got={:?}", stmt);
@@ -265,15 +271,20 @@ fn test_integer_literal(il: &Box<dyn Expression>, value: i64) {
 }
 #[test]
 fn test_parsing_infix_expressions() {
-    let infix_tests = [
-        ("5 + 5;", 5, "+", 5),
-        ("5 - 5;", 5, "-", 5),
-        ("5 * 5;", 5, "*", 5),
-        ("5 / 5;", 5, "/", 5),
-        ("5 > 5;", 5, ">", 5),
-        ("5 < 5;", 5, "<", 5),
-        ("5 == 5;", 5, "==", 5),
-        ("5 != 5;", 5, "!=", 5),
+    let infix_tests: [(&str, Box<dyn Any>, &str, Box<dyn Any>); 13] = [
+        ("5 + 5;", Box::new(5 as i64), "+", Box::new(5 as i64)),
+        ("5 - 5;", Box::new(5 as i64), "-", Box::new(5 as i64)),
+        ("5 * 5;", Box::new(5 as i64), "*", Box::new(5 as i64)),
+        ("5 / 5;", Box::new(5 as i64), "/", Box::new(5 as i64)),
+        ("5 > 5;", Box::new(5 as i64), ">", Box::new(5 as i64)),
+        ("5 < 5;", Box::new(5 as i64), "<", Box::new(5 as i64)),
+        ("5 == 5;", Box::new(5 as i64), "==", Box::new(5 as i64)),
+        ("5 != 5;", Box::new(5 as i64), "!=", Box::new(5 as i64)),
+        ("true == true", Box::new(true), "==", Box::new(true)),
+        ("true != false", Box::new(true), "!=", Box::new(false)),
+        ("false == false", Box::new(false), "==", Box::new(false)),
+        ("5 + 10", Box::new(5 as i64), "+", Box::new(10 as i64)),
+        ("alice * bob", Box::new("alice"), "*", Box::new("bob")),
     ];
 
     for tt in infix_tests.iter() {
@@ -302,18 +313,131 @@ fn test_parsing_infix_expressions() {
                         "stmt is not ast.InfixExpression. got={:?}",
                         expression
                     ));
-                test_integer_literal(&exp.left.as_ref().unwrap(), tt.1);
+                test_literal_expression(&exp.left.as_ref().unwrap(), &tt.1);
                 assert!(
                     exp.operator == tt.2,
                     "exp.operator is not '{}'. got={:?}",
                     tt.2,
                     exp.operator
                 );
-                test_integer_literal(&exp.right.as_ref().unwrap(), tt.3);
+                test_literal_expression(&exp.right.as_ref().unwrap(), &tt.3);
             }
             _ => {
                 assert!(false, "stmt is not ast.InfixExpression. got={:?}", stmt);
             }
         }
     }
+}
+
+#[test]
+fn test_operator_precedence_parsing() {
+    let tests = [
+        ("-a * b", "((-a) * b)"),
+        ("!-a", "(!(-a))"),
+        ("a + b + c", "((a + b) + c)"),
+        ("a + b - c", "((a + b) - c)"),
+        ("a * b * c", "((a * b) * c)"),
+        ("a * b / c", "((a * b) / c)"),
+        ("a + b / c", "(a + (b / c))"),
+        ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
+        ("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"),
+        ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
+        ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
+        (
+            "3 + 4 * 5 == 3 * 1 + 4 * 5",
+            "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+        ),
+        ("true", "true"),
+        ("false", "false"),
+        ("3 > 5 == false", "((3 > 5) == false)"),
+        ("3 < 5 == true", "((3 < 5) == true)"),
+    ];
+    for tt in tests.iter() {
+        let mut l = Lexer::new(tt.0);
+        let mut p = Parser::new(&mut l);
+        let program = p.parse_program().expect("parse_program() returned None");
+        check_parser_errors(&mut p);
+        let actual = program.string();
+        assert!(actual == tt.1, "expected={}, got={}", tt.1, actual);
+    }
+}
+
+fn test_identifier(exp: &Box<dyn Expression>, value: &str) {
+    let ident = exp
+        .as_any()
+        .downcast_ref::<Identifier>()
+        .expect(&format!("exp not ast.Identifier. got={:?}", exp));
+
+    assert!(
+        ident.value == value,
+        "ident.value not {}. got={}",
+        value,
+        ident.value
+    );
+    assert!(
+        ident.token_literal() == value,
+        "ident.token_literal not {}. got={}",
+        value,
+        ident.token_literal()
+    );
+}
+
+fn test_literal_expression(exp: &Box<dyn Expression>, expected: &Box<dyn Any>) {
+    match expected.downcast_ref::<i64>() {
+        Some(i64_value) => {
+            test_integer_literal(&exp, *i64_value);
+        }
+        _ => match expected.downcast_ref::<&str>() {
+            Some(string_value) => {
+                test_identifier(&exp, &string_value);
+            }
+            _ => match expected.downcast_ref::<bool>() {
+                Some(bool_value) => {
+                    test_bool_literal(&exp, *bool_value);
+                }
+                _ => {
+                    assert!(false, "type of exp not handled. got={:?}", exp);
+                }
+            },
+        },
+    }
+}
+
+fn test_infix_expression(
+    exp: Box<dyn Expression>,
+    left: Box<dyn Any>,
+    operator: &str,
+    right: Box<dyn Any>,
+) {
+    let op_exp = exp
+        .as_any()
+        .downcast_ref::<InfixExpression>()
+        .expect(&format!("exp is not ast.OperatorExpression. got={:?}", exp));
+    test_literal_expression(&op_exp.left.as_ref().unwrap(), &left);
+    assert!(
+        op_exp.operator == operator,
+        "exp.operator is not '{}'. got={}",
+        operator,
+        op_exp.operator
+    );
+    test_literal_expression(&op_exp.right.as_ref().unwrap(), &right);
+}
+
+fn test_bool_literal(exp: &Box<dyn Expression>, value: bool) {
+    let bo = exp
+        .as_any()
+        .downcast_ref::<Boolean>()
+        .expect(&format!("exp not ast.Boolean. got={:?}", exp));
+    assert!(
+        bo.value == value,
+        "bo.value not {}. got={}",
+        value,
+        bo.value
+    );
+    assert!(
+        bo.token_literal() == format!("{}", value),
+        "bo.token_literal not {}. got={}",
+        value,
+        bo.token_literal()
+    );
 }

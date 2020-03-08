@@ -196,6 +196,12 @@ impl<'a> Parser<'a> {
             TokenType::MINUS => {
                 left_exp = self.parse_prefix_expression();
             }
+            TokenType::TRUE => {
+                left_exp = self.parse_boolean();
+            }
+            TokenType::FALSE => {
+                left_exp = self.parse_boolean();
+            }
             _ => {
                 self.no_prefix_parse_fn_error(self.cur_token.tk_type);
                 return None;
@@ -303,5 +309,12 @@ impl<'a> Parser<'a> {
         self.next_token();
         expression.right = self.parse_expression(precedence);
         Some(Box::new(expression))
+    }
+
+    fn parse_boolean(&mut self) -> Option<Box<dyn Expression>> {
+        Some(Box::new(Boolean {
+            token: self.cur_token.clone(),
+            value: self.cur_token_is(TokenType::TRUE),
+        }))
     }
 }
