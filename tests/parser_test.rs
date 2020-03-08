@@ -48,7 +48,7 @@ fn test_let_statement(s: &Box<dyn Statement>, name: &str) {
     let let_stmt = s
         .as_any()
         .downcast_ref::<LetStatement>()
-        .expect(&format!("s not ast.LetStatement. got={}", s));
+        .expect(&format!("s not ast.LetStatement. got={:?}", s));
 
     assert!(
         let_stmt.name.as_ref().unwrap().value == *name,
@@ -86,7 +86,7 @@ fn test_return_statements() {
         let return_stmt = stmt
             .as_any()
             .downcast_ref::<ReturnStatement>()
-            .expect(&format!("stmt not ReturnStatment. got={}", stmt));
+            .expect(&format!("stmt not ReturnStatment. got={:?}", stmt));
         assert!(
             stmt.token_literal() == "return",
             "return_stmt.token_literal not 'return', got {}",
@@ -143,7 +143,7 @@ fn test_identifier_expresion() {
         .as_any()
         .downcast_ref::<ExpressionStmt>()
         .expect(&format!(
-            "program.statements[0] is not ExpressionStmt. got={}",
+            "program.statements[0] is not ExpressionStmt. got={:?}",
             program.statements[0]
         ));
     match &stmt.expression {
@@ -151,7 +151,7 @@ fn test_identifier_expresion() {
             let ident = expression
                 .as_any()
                 .downcast_ref::<Identifier>()
-                .expect(&format!("exp not Identifier. got={}", expression));
+                .expect(&format!("exp not Identifier. got={:?}", expression));
             assert!(
                 ident.value == "foobar",
                 "ident.value not {}. got={}",
@@ -166,7 +166,7 @@ fn test_identifier_expresion() {
             );
         }
         _ => {
-            assert!(false, "exp not Identifier. got={}", stmt);
+            assert!(false, "exp not Identifier. got={:?}", stmt);
         }
     }
 }
@@ -187,7 +187,7 @@ fn test_integer_literal_expression() {
         .as_any()
         .downcast_ref::<ExpressionStmt>()
         .expect(&format!(
-            "program.statements[0] is not ast.ExpressionStmt. got={}",
+            "program.statements[0] is not ast.ExpressionStmt. got={:?}",
             program.statements[0]
         ));
     match &stmt.expression {
@@ -195,7 +195,7 @@ fn test_integer_literal_expression() {
             test_integer_literal(expression, 5);
         }
         _ => {
-            assert!(false, "exp not ast.IntegerLiteral. got={}", stmt);
+            assert!(false, "exp not ast.IntegerLiteral. got={:?}", stmt);
         }
     }
 }
@@ -217,7 +217,7 @@ fn test_parsing_prefix_expressions() {
             .as_any()
             .downcast_ref::<ExpressionStmt>()
             .expect(&format!(
-                "program.statements[0] is not ast.ExpressionStmt. got={}",
+                "program.statements[0] is not ast.ExpressionStmt. got={:?}",
                 program.statements[0]
             ));
         match &stmt.expression {
@@ -226,7 +226,7 @@ fn test_parsing_prefix_expressions() {
                     .as_any()
                     .downcast_ref::<PrefixExpression>()
                     .expect(&format!(
-                        "stmt is not ast.PrefixExpression. got={}",
+                        "stmt is not ast.PrefixExpression. got={:?}",
                         expression
                     ));
                 assert!(
@@ -239,7 +239,7 @@ fn test_parsing_prefix_expressions() {
                 test_integer_literal(&right, tt.2);
             }
             _ => {
-                assert!(false, "exp not ast.PrefixExpression. got={}", stmt);
+                assert!(false, "exp not ast.PrefixExpression. got={:?}", stmt);
             }
         }
     }
@@ -249,7 +249,7 @@ fn test_integer_literal(il: &Box<dyn Expression>, value: i64) {
     let literal = il
         .as_any()
         .downcast_ref::<IntegerLiteral>()
-        .expect(&format!("exp not ast.IntegerLiteral. got={}", il));
+        .expect(&format!("exp not ast.IntegerLiteral. got={:?}", il));
     assert!(
         literal.value == value,
         "literal.value not {}, got={}",
