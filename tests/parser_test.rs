@@ -262,4 +262,59 @@ fn test_integer_literal(il: &Box<dyn Expression>, value: i64) {
         value,
         literal.token_literal()
     );
+
+    #[test]
+    fn test_parsing_infix_expressions() {
+        let infix_tests = [
+            ("5 + 5;", 5, "+", 5),
+            ("5 - 5;", 5, "-", 5),
+            ("5 * 5;", 5, "*", 5),
+            ("5 / 5;", 5, "/", 5),
+            ("5 > 5;", 5, ">", 5),
+            ("5 < 5;", 5, "<+>", 5),
+            ("5 == 5;", 5, "==", 5),
+            ("5 != 5;", 5, "!=", 5),
+        ];
+
+        for tt in infix_tests.iter() {
+            let mut l = Lexer::new(tt.0);
+            let mut p = Parser::new(&mut l);
+            let program = p.parse_program().expect("parse_program() returned None");
+            check_parser_errors(&mut p);
+            assert!(
+                program.statements.len() == 1,
+                "program has not enough statements. got={}",
+                program.statements.len()
+            );
+            let stmt = program.statements[0]
+                .as_any()
+                .downcast_ref::<ExpressionStmt>()
+                .expect(&format!(
+                    "program.statements[0] is not ast.ExpressionStmt. got={}",
+                    program.statements[0]
+                ));
+            match &stmt.expression {
+                Some(expression) => {
+                    let exp = expression
+                        .as_any()
+                        .downcast_ref::<InfixExpression>()
+                        .expect(&format!(
+                            "stmt is not ast.InfixExpression. got={}",
+                            expression
+                        ));
+                    test_integer_literal(exp.left, tt.1);
+                    assert!(
+                        exp.operator != tt.2,
+                        "exp.operator is not '{}'. got={}",
+                        tt.1,
+                        exp.operator
+                    );
+                    test_integer_literal(exp.right, tt.3);
+                }
+                _ => {
+                    assert!(false, "stmt is not ast.InfixExpression. got={}", stmt);
+                }
+            }
+        }
+    }
 }

@@ -215,3 +215,30 @@ impl Display for PrefixExpression {
         write!(f, "PrefixExpression")
     }
 }
+
+#[derive(Debug)]
+pub struct InfixExpression {
+    pub token: Token,
+    pub left: Option<Box<dyn Expression>>,
+    pub operator: String,
+    pub right: Option<Box<dyn Expression>>,
+}
+impl Expression for InfixExpression {
+    fn expression_node(&self) {}
+}
+impl Node for InfixExpression {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn string(&self) -> String {
+        let mut out = String::new();
+        out.push_str("(");
+        out.push_str(&self.left.unwrap().string());
+        out.push_str(&self.right.unwrap().string());
+        out.push_str(")");
+        out
+    }
+}
