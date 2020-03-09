@@ -46,8 +46,8 @@ impl Node for Program {
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Token,
-    pub name: Option<Identifier>,           //TODO Option?
-    pub value: Option<Box<dyn Expression>>, //TODO Option?
+    pub name: Identifier,
+    pub value: Box<dyn Expression>,
 }
 impl Statement for LetStatement {
     fn statement_node(&self) {}
@@ -63,9 +63,9 @@ impl Node for LetStatement {
         let mut out = String::new();
         out.push_str(self.token_literal());
         out.push_str(" ");
-        out.push_str(&self.name.as_ref().unwrap().string());
+        out.push_str(&self.name.string());
         out.push_str(" = ");
-        out.push_str(&self.value.as_ref().unwrap().string());
+        out.push_str(&self.value.string());
         out.push_str(";");
         out
     }
@@ -102,7 +102,7 @@ impl Node for Identifier {
 #[derive(Debug)]
 pub struct ReturnStatement {
     pub token: Token,
-    pub return_value: Option<Box<dyn Expression>>,
+    pub return_value: Box<dyn Expression>,
 }
 impl Statement for ReturnStatement {
     fn statement_node(&self) {}
@@ -118,7 +118,7 @@ impl Node for ReturnStatement {
         let mut out = String::new();
         out.push_str(self.token_literal());
         out.push_str(" ");
-        out.push_str(&self.return_value.as_ref().unwrap().string());
+        out.push_str(&self.return_value.string());
         out.push_str(";");
         out
     }
@@ -130,7 +130,7 @@ impl Node for ReturnStatement {
 #[derive(Debug)]
 pub struct ExpressionStmt {
     pub token: Token,
-    pub expression: Option<Box<dyn Expression>>,
+    pub expression: Box<dyn Expression>,
 }
 impl Statement for ExpressionStmt {
     fn statement_node(&self) {}
@@ -143,10 +143,7 @@ impl Node for ExpressionStmt {
         &self.token.literal
     }
     fn string(&self) -> String {
-        match &self.expression {
-            Some(exp) => exp.string(),
-            _ => String::new(),
-        }
+        self.expression.string()
     }
     fn as_any(&self) -> &dyn Any {
         self
@@ -180,7 +177,7 @@ impl Node for IntegerLiteral {
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
-    pub right: Option<Box<dyn Expression>>,
+    pub right: Box<dyn Expression>,
 }
 impl Expression for PrefixExpression {
     fn expression_node(&self) {}
@@ -196,7 +193,7 @@ impl Node for PrefixExpression {
         let mut out = String::new();
         out.push_str("(");
         out.push_str(&self.operator);
-        out.push_str(&self.right.as_ref().unwrap().string());
+        out.push_str(&self.right.string());
         out.push_str(")");
         out
     }
@@ -208,9 +205,9 @@ impl Node for PrefixExpression {
 #[derive(Debug)]
 pub struct InfixExpression {
     pub token: Token,
-    pub left: Option<Box<dyn Expression>>,
+    pub left: Box<dyn Expression>,
     pub operator: String,
-    pub right: Option<Box<dyn Expression>>,
+    pub right: Box<dyn Expression>,
 }
 impl Expression for InfixExpression {
     fn expression_node(&self) {}
@@ -225,11 +222,11 @@ impl Node for InfixExpression {
     fn string(&self) -> String {
         let mut out = String::new();
         out.push_str("(");
-        out.push_str(&self.left.as_ref().unwrap().string());
+        out.push_str(&self.left.string());
         out.push_str(" ");
         out.push_str(&self.operator);
         out.push_str(" ");
-        out.push_str(&self.right.as_ref().unwrap().string());
+        out.push_str(&self.right.string());
         out.push_str(")");
         out
     }
@@ -264,8 +261,8 @@ impl Node for Boolean {
 #[derive(Debug)]
 pub struct IfExpression {
     pub token: Token,
-    pub condition: Option<Box<dyn Expression>>,
-    pub consequence: Option<BlockStatement>,
+    pub condition: Box<dyn Expression>,
+    pub consequence: BlockStatement,
     pub alternative: Option<BlockStatement>,
 }
 impl Expression for IfExpression {
@@ -281,9 +278,9 @@ impl Node for IfExpression {
     fn string(&self) -> String {
         let mut out = String::new();
         out.push_str("if");
-        out.push_str(&self.condition.as_ref().unwrap().string());
+        out.push_str(&self.condition.string());
         out.push_str(" ");
-        out.push_str(&self.consequence.as_ref().unwrap().string());
+        out.push_str(&self.consequence.string());
         match &self.alternative {
             Some(alternative) => {
                 out.push_str(" else ");
@@ -329,7 +326,7 @@ impl Node for BlockStatement {
 pub struct FunctionLiteral {
     pub token: Token,
     pub parameters: Vec<Identifier>,
-    pub body: Option<BlockStatement>,
+    pub body: BlockStatement,
 }
 impl Expression for FunctionLiteral {
     fn expression_node(&self) {}
@@ -351,7 +348,7 @@ impl Node for FunctionLiteral {
         out.push_str("(");
         out.push_str(&params.join(", "));
         out.push_str(")");
-        out.push_str(&self.body.as_ref().unwrap().string());
+        out.push_str(&self.body.string());
         out
     }
     fn as_any(&self) -> &dyn Any {
@@ -362,7 +359,7 @@ impl Node for FunctionLiteral {
 #[derive(Debug)]
 pub struct CallExpression {
     pub token: Token,
-    pub function: Option<Box<dyn Expression>>,
+    pub function: Box<dyn Expression>,
     pub arguments: Vec<Box<dyn Expression>>,
 }
 impl Expression for CallExpression {
@@ -381,7 +378,7 @@ impl Node for CallExpression {
         for a in self.arguments.iter() {
             args.push(a.string());
         }
-        out.push_str(&self.function.as_ref().unwrap().string());
+        out.push_str(&self.function.string());
         out.push_str("(");
         out.push_str(&args.join(", "));
         out.push_str(")");

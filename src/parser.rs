@@ -101,11 +101,9 @@ impl<'a> Parser<'a> {
             statements: Vec::new(),
         };
         while self.cur_token.tk_type != TokenType::EOF {
-            match self.parse_statement() {
-                Some(stmt) => {
-                    program.statements.push(stmt);
-                }
-                _ => {}
+            let stmt = self.parse_statement();
+            if stmt.is_some() {
+                program.statements.push(stmt.unwrap());
             }
             self.next_token();
         }
@@ -123,41 +121,53 @@ impl<'a> Parser<'a> {
 
     fn parse_let_statement(&mut self) -> Option<Box<dyn Statement>> {
         println!("parse_let_statement: {:?}", self.cur_token);
-        let mut stmt = LetStatement {
-            token: self.cur_token.clone(),
-            name: None,
-            value: None,
-        };
+        let token = self.cur_token.clone();
 
         if !self.expect_peek(TokenType::IDENT) {
             return None;
         }
-        stmt.name = Some(Identifier {
-            token: self.cur_token.clone(),
-            value: self.cur_token.literal.clone(),
-        });
+
+        let name_token = self.cur_token.clone();
+        let name_value = self.cur_token.literal.clone();
+
         if !self.expect_peek(TokenType::ASSIGN) {
             return None;
         }
 
         self.next_token();
-        stmt.value = self.parse_expression(Precedence::LOWEST);
+
+        let value = self.parse_expression(Precedence::LOWEST);
+        if value.is_none() {
+            return None;
+        }
+
+        let stmt = LetStatement {
+            token: token,
+            name: Identifier {
+                token: name_token,
+                value: name_value,
+            },
+            value: value.unwrap(),
+        };
 
         while !self.cur_token_is(TokenType::SEMICOLON) {
             self.next_token();
         }
         Some(Box::new(stmt))
     }
-
     fn parse_return_statement(&mut self) -> Option<Box<dyn Statement>> {
         println!("parse_return_statement: {:?}", self.cur_token);
-        let mut stmt = ReturnStatement {
-            token: self.cur_token.clone(),
-            return_value: None,
-        };
-
+        let token = self.cur_token.clone();
         self.next_token();
-        stmt.return_value = self.parse_expression(Precedence::LOWEST);
+
+        let return_value = self.parse_expression(Precedence::LOWEST);
+        if return_value.is_none() {
+            return None;
+        }
+        let stmt = ReturnStatement {
+            token: token,
+            return_value: return_value.unwrap(),
+        };
 
         if self.peek_token_is(TokenType::SEMICOLON) {
             self.next_token();
@@ -168,12 +178,15 @@ impl<'a> Parser<'a> {
 
     fn parse_expression_statement(&mut self) -> Option<Box<dyn Statement>> {
         println!("parse_expression_statement: {:?}", self.cur_token);
-        let mut stmt = ExpressionStmt {
-            token: self.cur_token.clone(),
-            expression: None,
+        let token = self.cur_token.clone();
+        let expression = self.parse_expression(Precedence::LOWEST);
+        if expression.is_none() {
+            return None;
+        }
+        let stmt = ExpressionStmt {
+            token: token,
+            expression: expression.unwrap(),
         };
-
-        stmt.expression = self.parse_expression(Precedence::LOWEST);
 
         if self.peek_token_is(TokenType::SEMICOLON) {
             self.next_token();
@@ -218,43 +231,47 @@ impl<'a> Parser<'a> {
             }
         };
 
+        if left_exp.is_none() {
+            return None;
+        }
+
         while !self.peek_token_is(TokenType::SEMICOLON) && precedence < self.peek_precedence() {
             match self.peek_token.tk_type {
                 TokenType::PLUS => {
                     self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp);
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
                 TokenType::MINUS => {
                     self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp);
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
                 TokenType::SLASH => {
                     self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp);
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
                 TokenType::ASTERISK => {
                     self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp);
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
                 TokenType::EQ => {
                     self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp);
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
                 TokenType::NOTEQ => {
                     self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp);
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
                 TokenType::LT => {
                     self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp);
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
                 TokenType::GT => {
                     self.next_token();
-                    left_exp = self.parse_infix_expression(left_exp);
+                    left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
                 TokenType::LPAREN => {
                     self.next_token();
-                    left_exp = self.parse_call_expression(left_exp);
+                    left_exp = self.parse_call_expression(left_exp.unwrap());
                 }
                 _ => {
                     return left_exp;
@@ -298,30 +315,40 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Box<dyn Expression>> {
-        let mut expression = PrefixExpression {
-            token: self.cur_token.clone(),
-            operator: self.cur_token.literal.clone(),
-            right: None,
-        };
+        let token = self.cur_token.clone();
+        let operator = self.cur_token.literal.clone();
         self.next_token();
-        expression.right = self.parse_expression(Precedence::PREFIX);
+        let right = self.parse_expression(Precedence::PREFIX);
+        if right.is_none() {
+            return None;
+        }
+        let expression = PrefixExpression {
+            token: token,
+            operator: operator,
+            right: right.unwrap(),
+        };
+
         Some(Box::new(expression))
     }
 
-    fn parse_infix_expression(
-        &mut self,
-        left: Option<Box<dyn Expression>>,
-    ) -> Option<Box<dyn Expression>> {
-        let mut expression = InfixExpression {
-            token: self.cur_token.clone(),
-            left: left,
-            operator: self.cur_token.literal.clone(),
-            right: None,
-        };
+    fn parse_infix_expression(&mut self, left: Box<dyn Expression>) -> Option<Box<dyn Expression>> {
+        let token = self.cur_token.clone();
+        let operator = self.cur_token.literal.clone();
 
         let precedence = self.cur_precedence();
         self.next_token();
-        expression.right = self.parse_expression(precedence);
+
+        let right = self.parse_expression(precedence);
+        if right.is_none() {
+            return None;
+        }
+        let expression = InfixExpression {
+            token: token,
+            left: left,
+            operator: operator,
+            right: right.unwrap(),
+        };
+
         Some(Box::new(expression))
     }
 
@@ -343,18 +370,15 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_if_expression(&mut self) -> Option<Box<dyn Expression>> {
-        let mut expression = IfExpression {
-            token: self.cur_token.clone(),
-            condition: None,
-            consequence: None,
-            alternative: None,
-        };
+        let token = self.cur_token.clone();
         if !self.expect_peek(TokenType::LPAREN) {
             return None;
         }
-
         self.next_token();
-        expression.condition = self.parse_expression(Precedence::LOWEST);
+        let condition = self.parse_expression(Precedence::LOWEST);
+        if condition.is_none() {
+            return None;
+        }
         if !self.expect_peek(TokenType::RPAREN) {
             return None;
         }
@@ -363,7 +387,17 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        expression.consequence = self.parse_block_statement();
+        let consequence = self.parse_block_statement();
+        if consequence.is_none() {
+            return None;
+        }
+
+        let mut expression = IfExpression {
+            token: token,
+            condition: condition.unwrap(),
+            consequence: consequence.unwrap(),
+            alternative: None,
+        };
 
         if self.peek_token_is(TokenType::ELSE) {
             self.next_token();
@@ -399,23 +433,26 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_literal(&mut self) -> Option<Box<dyn Expression>> {
-        let mut lit = FunctionLiteral {
-            token: self.cur_token.clone(),
-            parameters: Vec::new(),
-            body: None,
-        };
-
+        let token = self.cur_token.clone();
         if !self.expect_peek(TokenType::LPAREN) {
             return None;
         }
 
-        lit.parameters = self.parse_function_parameters();
+        let parameters = self.parse_function_parameters();
 
         if !self.expect_peek(TokenType::LBRACE) {
             return None;
         }
+        let body = self.parse_block_statement();
+        if body.is_none() {
+            return None;
+        }
+        let lit = FunctionLiteral {
+            token: token,
+            parameters: parameters,
+            body: body.unwrap(),
+        };
 
-        lit.body = self.parse_block_statement();
         Some(Box::new(lit))
     }
 
@@ -452,7 +489,7 @@ impl<'a> Parser<'a> {
 
     fn parse_call_expression(
         &mut self,
-        function: Option<Box<dyn Expression>>,
+        function: Box<dyn Expression>,
     ) -> Option<Box<dyn Expression>> {
         let exp = CallExpression {
             token: self.cur_token.clone(),
@@ -471,12 +508,20 @@ impl<'a> Parser<'a> {
         }
 
         self.next_token();
-        args.push(self.parse_expression(Precedence::LOWEST).unwrap()); //TODO danger
+        let a = self.parse_expression(Precedence::LOWEST);
+        if a.is_none() {
+            return Vec::new();
+        }
+        args.push(a.unwrap());
 
         while self.peek_token_is(TokenType::COMMA) {
             self.next_token();
             self.next_token();
-            args.push(self.parse_expression(Precedence::LOWEST).unwrap()); //TODO danger
+            let a = self.parse_expression(Precedence::LOWEST);
+            if a.is_none() {
+                return Vec::new();
+            }
+            args.push(a.unwrap());
         }
 
         if !self.expect_peek(TokenType::RPAREN) {

@@ -9,14 +9,7 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     }
     let expression_stmt = any_node.downcast_ref::<ExpressionStmt>();
     if expression_stmt.is_some() {
-        return eval(
-            expression_stmt
-                .unwrap()
-                .expression
-                .as_ref()
-                .unwrap()
-                .as_node(),
-        );
+        return eval(expression_stmt.unwrap().expression.as_node());
     }
     let integer_literal = any_node.downcast_ref::<IntegerLiteral>();
     if integer_literal.is_some() {
