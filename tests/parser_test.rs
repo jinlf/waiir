@@ -19,24 +19,32 @@ fn check_parser_errors(p: &Parser) {
 
 #[test]
 fn test_let_statements() {
-    let input = "
-    let x = 5;
-    let y = 10;
-    let foobar = 838383;
-    ";
-    let mut l = Lexer::new(input);
-    let mut p = Parser::new(&mut l);
-    let program = p.parse_program().expect("parse_program() returned None");
-    check_parser_errors(&p);
-    assert!(
-        program.statements.len() == 3,
-        "program.statements does not contain 3 statements. got={}",
-        program.statements.len()
-    );
-    let tests = ["x", "y", "foobar"];
-    for (i, name) in tests.iter().enumerate() {
-        let stmt = &program.statements[i];
-        test_let_statement(stmt, name);
+    let tests: [(&str, &str, Box<dyn Any>); 3] = [
+        ("let x = 5;", "x", Box::new(5 as i64)),
+        ("let y = true;", "y", Box::new(true)),
+        ("let foobar = y;", "foobar", Box::new("y")),
+    ];
+    for tt in tests.iter() {
+        let mut l = Lexer::new(tt.0);
+        let mut p = Parser::new(&mut l);
+        let program = p.parse_program().expect("parse_program() returned None");
+        check_parser_errors(&p);
+        assert!(
+            program.statements.len() == 1,
+            "program.statements does not contain 1 statements. got={}",
+            program.statements.len()
+        );
+        let stmt = &program.statements[0];
+        test_let_statement(stmt, tt.1);
+
+        let val = stmt
+            .as_any()
+            .downcast_ref::<LetStatement>()
+            .unwrap()
+            .value
+            .as_ref()
+            .unwrap();
+        test_literal_expression(val, &tt.2);
     }
 }
 
@@ -193,7 +201,7 @@ fn test_integer_literal_expression() {
         ));
     match &stmt.expression {
         Some(expression) => {
-            test_integer_literal(expression, 5);
+            test_integer_literal(&expression, 5);
         }
         _ => {
             assert!(false, "exp not ast.IntegerLiteral. got={:?}", stmt);
@@ -351,6 +359,20 @@ fn test_operator_precedence_parsing() {
         ("false", "false"),
         ("3 > 5 == false", "((3 > 5) == false)"),
         ("3 < 5 == true", "((3 < 5) == true)"),
+        ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+        ("(5 + 5) * 2", "((5 + 5) * 2)"),
+        ("2 / (5 + 5)", "(2 / (5 + 5))"),
+        ("-(5 + 5)", "(-(5 + 5))"),
+        ("!(true == true)", "(!(true == true))"),
+        ("a + add(b * c) + d", "((a + add((b * c))) + d)"),
+        (
+            "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+            "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+        ),
+        (
+            "add(a + b + c * d / f + g)",
+            "add((((a + b) + ((c * d) / f)) + g))",
+        ),
     ];
     for tt in tests.iter() {
         let mut l = Lexer::new(tt.0);
@@ -385,15 +407,15 @@ fn test_identifier(exp: &Box<dyn Expression>, value: &str) {
 fn test_literal_expression(exp: &Box<dyn Expression>, expected: &Box<dyn Any>) {
     match expected.downcast_ref::<i64>() {
         Some(i64_value) => {
-            test_integer_literal(&exp, *i64_value);
+            test_integer_literal(exp, *i64_value);
         }
         _ => match expected.downcast_ref::<&str>() {
             Some(string_value) => {
-                test_identifier(&exp, &string_value);
+                test_identifier(exp, &string_value);
             }
             _ => match expected.downcast_ref::<bool>() {
                 Some(bool_value) => {
-                    test_bool_literal(&exp, *bool_value);
+                    test_bool_literal(exp, *bool_value);
                 }
                 _ => {
                     assert!(false, "type of exp not handled. got={:?}", exp);
@@ -404,7 +426,7 @@ fn test_literal_expression(exp: &Box<dyn Expression>, expected: &Box<dyn Any>) {
 }
 
 fn test_infix_expression(
-    exp: Box<dyn Expression>,
+    exp: &Box<dyn Expression>,
     left: Box<dyn Any>,
     operator: &str,
     right: Box<dyn Any>,
@@ -439,5 +461,313 @@ fn test_bool_literal(exp: &Box<dyn Expression>, value: bool) {
         "bo.token_literal not {}. got={}",
         value,
         bo.token_literal()
+    );
+}
+
+#[test]
+fn test_if_expression() {
+    let input = "if (x < y) { x }";
+    let mut l = Lexer::new(input);
+    let mut p = Parser::new(&mut l);
+    let program = p.parse_program().expect("parse_program() returned None");
+    check_parser_errors(&p);
+    assert!(
+        program.statements.len() == 1,
+        "program.statements does not contain 1 statements. got={}",
+        program.statements.len()
+    );
+    let stmt = program.statements[0]
+        .as_any()
+        .downcast_ref::<ExpressionStmt>()
+        .expect(&format!(
+            "program.statement[0] is not ast.ExpressionStmt. got={:?}",
+            program.statements[0]
+        ));
+    match &stmt.expression {
+        Some(expression) => {
+            let exp = expression
+                .as_any()
+                .downcast_ref::<IfExpression>()
+                .expect(&format!(
+                    "stmt.expression is not ast.IfExpression. got={:?}",
+                    expression
+                ));
+            test_infix_expression(
+                &exp.condition.as_ref().unwrap(),
+                Box::new("x"),
+                "<",
+                Box::new("y"),
+            );
+            assert!(
+                exp.consequence.as_ref().unwrap().statements.len() == 1,
+                "consequence is not 1 statements. got={}",
+                exp.consequence.as_ref().unwrap().statements.len()
+            );
+            let consequence = exp.consequence.as_ref().unwrap().statements[0]
+                .as_any()
+                .downcast_ref::<ExpressionStmt>()
+                .expect(&format!(
+                    "statements[0] is not ast.ExpressionStmt. got={:?}",
+                    exp.consequence.as_ref().unwrap().statements[0]
+                ));
+            test_identifier(&consequence.expression.as_ref().unwrap(), "x");
+            match &exp.alternative {
+                Some(alternative) => {
+                    assert!(
+                        false,
+                        "exp.alternative.statements was not None, got={:?}",
+                        alternative
+                    );
+                }
+                _ => {}
+            }
+        }
+        _ => {
+            assert!(
+                false,
+                "stmt.expression is not ast.IfExpression. got={:?}",
+                stmt
+            );
+        }
+    }
+}
+
+#[test]
+fn test_if_else_expression() {
+    let input = "if (x < y) { x } else { y }";
+    let mut l = Lexer::new(input);
+    let mut p = Parser::new(&mut l);
+    let program = p.parse_program().expect("parse_program() returned None");
+    check_parser_errors(&p);
+    assert!(
+        program.statements.len() == 1,
+        "program.statements does not contain 1 statements. got={}",
+        program.statements.len()
+    );
+    let stmt = program.statements[0]
+        .as_any()
+        .downcast_ref::<ExpressionStmt>()
+        .expect(&format!(
+            "program.statement[0] is not ast.ExpressionStmt. got={:?}",
+            program.statements[0]
+        ));
+    match &stmt.expression {
+        Some(expression) => {
+            let exp = expression
+                .as_any()
+                .downcast_ref::<IfExpression>()
+                .expect(&format!(
+                    "stmt.expression is not ast.IfExpression. got={:?}",
+                    expression
+                ));
+            test_infix_expression(
+                &exp.condition.as_ref().unwrap(),
+                Box::new("x"),
+                "<",
+                Box::new("y"),
+            );
+            assert!(
+                exp.consequence.as_ref().unwrap().statements.len() == 1,
+                "consequence is not 1 statements. got={}",
+                exp.consequence.as_ref().unwrap().statements.len()
+            );
+            let consequence = exp.consequence.as_ref().unwrap().statements[0]
+                .as_any()
+                .downcast_ref::<ExpressionStmt>()
+                .expect(&format!(
+                    "statements[0] is not ast.ExpressionStmt. got={:?}",
+                    exp.consequence.as_ref().unwrap().statements[0]
+                ));
+            test_identifier(&consequence.expression.as_ref().unwrap(), "x");
+            match &exp.alternative {
+                Some(alternative) => {
+                    assert!(
+                        alternative.statements.len() == 1,
+                        "alternative is not 1 statements. got={}",
+                        alternative.statements.len()
+                    );
+
+                    let a = alternative.statements[0]
+                        .as_any()
+                        .downcast_ref::<ExpressionStmt>()
+                        .expect(&format!(
+                            "statements[0] is not ast.ExpressionStmt. got={:?}",
+                            alternative.statements[0],
+                        ));
+                    test_identifier(&a.expression.as_ref().unwrap(), "y");
+                }
+                _ => {}
+            }
+        }
+        _ => {
+            assert!(
+                false,
+                "stmt.expression is not ast.IfExpression. got={:?}",
+                stmt
+            );
+        }
+    }
+}
+
+#[test]
+fn test_function_literal_parsing() {
+    let input = "fn(x, y) { x + y; }";
+    let mut l = Lexer::new(input);
+    let mut p = Parser::new(&mut l);
+    let program = p.parse_program().expect("parse_program() returned None");
+    check_parser_errors(&p);
+    assert!(
+        program.statements.len() == 1,
+        "program.statements does not contain 1 statements. got={}",
+        program.statements.len()
+    );
+    let stmt = program.statements[0]
+        .as_any()
+        .downcast_ref::<ExpressionStmt>()
+        .expect(&format!(
+            "program.statement[0] is not ast.ExpressionStmt. got={:?}",
+            program.statements[0]
+        ));
+    match &stmt.expression {
+        Some(expression) => {
+            let function = expression
+                .as_any()
+                .downcast_ref::<FunctionLiteral>()
+                .expect(&format!(
+                    "stmt.expression is not ast.FunctionLiteral. got={:?}",
+                    expression
+                ));
+            assert!(
+                function.parameters.len() == 2,
+                "function literal parameters wrong. want 2, got={}",
+                function.parameters.len()
+            );
+            test_literal_expression(
+                &(Box::new(function.parameters[0].clone()) as Box<dyn Expression>),
+                &(Box::new("x") as Box<dyn Any>),
+            );
+            test_literal_expression(
+                &(Box::new(function.parameters[1].clone()) as Box<dyn Expression>),
+                &(Box::new("y") as Box<dyn Any>),
+            );
+
+            assert!(
+                function.body.as_ref().unwrap().statements.len() == 1,
+                "function.body.statements has not 1 statements. got={}",
+                function.body.as_ref().unwrap().statements.len()
+            );
+
+            let body_stmt = function.body.as_ref().unwrap().statements[0]
+                .as_any()
+                .downcast_ref::<ExpressionStmt>()
+                .expect(&format!(
+                    "function body stmt is not ast.ExpressionStmt. got={:?}",
+                    function.body.as_ref().unwrap().statements[0]
+                ));
+            test_infix_expression(
+                &body_stmt.expression.as_ref().unwrap(),
+                Box::new("x"),
+                "+",
+                Box::new("y"),
+            );
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn test_function_parameter_parsing() {
+    let tests = [
+        ("fn() {};", vec![]),
+        ("fn(x) {};", vec!["x"]),
+        ("fn(x, y, z) {};", vec!["x", "y", "z"]),
+    ];
+    for tt in tests.iter() {
+        let mut l = Lexer::new(tt.0);
+        let mut p = Parser::new(&mut l);
+        let program = p.parse_program().unwrap();
+        check_parser_errors(&p);
+
+        let stmt = program.statements[0]
+            .as_ref()
+            .as_any()
+            .downcast_ref::<ExpressionStmt>()
+            .unwrap();
+
+        let function = stmt
+            .expression
+            .as_ref()
+            .unwrap()
+            .as_any()
+            .downcast_ref::<FunctionLiteral>()
+            .unwrap();
+
+        assert!(
+            function.parameters.len() == tt.1.len(),
+            "length parameters wrong. want {}, got={}",
+            tt.1.len(),
+            function.parameters.len()
+        );
+
+        for (i, ident) in tt.1.iter().enumerate() {
+            test_literal_expression(
+                &(Box::new(function.parameters[i].clone()) as Box<dyn Expression>),
+                &(Box::new(ident.clone()) as Box<dyn Any>),
+            );
+        }
+    }
+}
+
+#[test]
+fn test_call_expression_parsing() {
+    let input = "add(1, 2 * 3, 4 + 5);";
+    let mut l = Lexer::new(input);
+    let mut p = Parser::new(&mut l);
+    let program = p.parse_program().unwrap();
+    check_parser_errors(&p);
+
+    assert!(
+        program.statements.len() == 1,
+        "program.statements does not contain 1 statements. got={}",
+        program.statements.len()
+    );
+
+    let stmt = program.statements[0]
+        .as_ref()
+        .as_any()
+        .downcast_ref::<ExpressionStmt>()
+        .unwrap();
+
+    let exp = stmt
+        .expression
+        .as_ref()
+        .unwrap()
+        .as_any()
+        .downcast_ref::<CallExpression>()
+        .expect(&format!(
+            "stmt.expression is not ast.CallExpression. got={:?}",
+            stmt.expression
+        ));
+
+    test_identifier(&exp.function.as_ref().unwrap(), "add");
+
+    assert!(
+        exp.arguments.len() == 3,
+        "wrong length of arguments. got={}",
+        exp.arguments.len()
+    );
+
+    test_literal_expression(&exp.arguments[0], &(Box::new(1 as i64) as Box<dyn Any>));
+    test_infix_expression(
+        &exp.arguments[1],
+        Box::new(2 as i64),
+        "*",
+        Box::new(3 as i64),
+    );
+    test_infix_expression(
+        &exp.arguments[2],
+        Box::new(4 as i64),
+        "+",
+        Box::new(5 as i64),
     );
 }

@@ -69,7 +69,7 @@ impl Node for LetStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
@@ -229,6 +229,125 @@ impl Node for Boolean {
     }
     fn string(&self) -> String {
         self.token.literal.clone()
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct IfExpression {
+    pub token: Token,
+    pub condition: Option<Box<dyn Expression>>,
+    pub consequence: Option<BlockStatement>,
+    pub alternative: Option<BlockStatement>,
+}
+impl Expression for IfExpression {
+    fn expression_node(&self) {}
+}
+impl Node for IfExpression {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+    fn string(&self) -> String {
+        let mut out = String::new();
+        out.push_str("if");
+        out.push_str(&self.condition.as_ref().unwrap().string());
+        out.push_str(" ");
+        out.push_str(&self.consequence.as_ref().unwrap().string());
+        match &self.alternative {
+            Some(alternative) => {
+                out.push_str(" else ");
+                out.push_str(&alternative.string());
+            }
+            _ => {}
+        }
+        out
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct BlockStatement {
+    pub token: Token,
+    pub statements: Vec<Box<dyn Statement>>,
+}
+impl Statement for BlockStatement {
+    fn statement_node(&self) {}
+}
+impl Node for BlockStatement {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+    fn string(&self) -> String {
+        let mut out = String::new();
+        for s in self.statements.iter() {
+            out.push_str(&s.string());
+        }
+        out
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct FunctionLiteral {
+    pub token: Token,
+    pub parameters: Vec<Identifier>,
+    pub body: Option<BlockStatement>,
+}
+impl Expression for FunctionLiteral {
+    fn expression_node(&self) {}
+}
+impl Node for FunctionLiteral {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+    fn string(&self) -> String {
+        let mut out = String::new();
+        let mut params: Vec<String> = Vec::new();
+        for p in self.parameters.iter() {
+            params.push(p.string());
+        }
+        out.push_str(self.token_literal());
+        out.push_str("(");
+        out.push_str(&params.join(", "));
+        out.push_str(")");
+        out.push_str(&self.body.as_ref().unwrap().string());
+        out
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct CallExpression {
+    pub token: Token,
+    pub function: Option<Box<dyn Expression>>,
+    pub arguments: Vec<Box<dyn Expression>>,
+}
+impl Expression for CallExpression {
+    fn expression_node(&self) {}
+}
+impl Node for CallExpression {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+    fn string(&self) -> String {
+        let mut out = String::new();
+        let mut args: Vec<String> = Vec::new();
+        for a in self.arguments.iter() {
+            args.push(a.string());
+        }
+        out.push_str(&self.function.as_ref().unwrap().string());
+        out.push_str("(");
+        out.push_str(&args.join(", "));
+        out.push_str(")");
+        out
     }
     fn as_any(&self) -> &dyn Any {
         self
