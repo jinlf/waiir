@@ -10,10 +10,12 @@ pub trait Node: Debug {
 
 pub trait Statement: Node {
     fn statement_node(&self);
+    fn as_node(&self) -> &dyn Node;
 }
 
 pub trait Expression: Node {
     fn expression_node(&self);
+    fn as_node(&self) -> &dyn Node;
 }
 
 #[derive(Debug)]
@@ -44,11 +46,14 @@ impl Node for Program {
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Token,
-    pub name: Option<Identifier>,
-    pub value: Option<Box<dyn Expression>>,
+    pub name: Option<Identifier>,           //TODO Option?
+    pub value: Option<Box<dyn Expression>>, //TODO Option?
 }
 impl Statement for LetStatement {
     fn statement_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for LetStatement {
     fn token_literal(&self) -> &str {
@@ -76,6 +81,9 @@ pub struct Identifier {
 }
 impl Expression for Identifier {
     fn expression_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for Identifier {
     fn token_literal(&self) -> &str {
@@ -98,6 +106,9 @@ pub struct ReturnStatement {
 }
 impl Statement for ReturnStatement {
     fn statement_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for ReturnStatement {
     fn token_literal(&self) -> &str {
@@ -123,6 +134,9 @@ pub struct ExpressionStmt {
 }
 impl Statement for ExpressionStmt {
     fn statement_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for ExpressionStmt {
     fn token_literal(&self) -> &str {
@@ -146,6 +160,9 @@ pub struct IntegerLiteral {
 }
 impl Expression for IntegerLiteral {
     fn expression_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for IntegerLiteral {
     fn token_literal(&self) -> &str {
@@ -167,6 +184,9 @@ pub struct PrefixExpression {
 }
 impl Expression for PrefixExpression {
     fn expression_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for PrefixExpression {
     fn token_literal(&self) -> &str {
@@ -194,6 +214,9 @@ pub struct InfixExpression {
 }
 impl Expression for InfixExpression {
     fn expression_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for InfixExpression {
     fn token_literal(&self) -> &str {
@@ -222,6 +245,9 @@ pub struct Boolean {
 }
 impl Expression for Boolean {
     fn expression_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for Boolean {
     fn token_literal(&self) -> &str {
@@ -244,6 +270,9 @@ pub struct IfExpression {
 }
 impl Expression for IfExpression {
     fn expression_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for IfExpression {
     fn token_literal(&self) -> &str {
@@ -276,6 +305,9 @@ pub struct BlockStatement {
 }
 impl Statement for BlockStatement {
     fn statement_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for BlockStatement {
     fn token_literal(&self) -> &str {
@@ -301,6 +333,9 @@ pub struct FunctionLiteral {
 }
 impl Expression for FunctionLiteral {
     fn expression_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for FunctionLiteral {
     fn token_literal(&self) -> &str {
@@ -332,6 +367,9 @@ pub struct CallExpression {
 }
 impl Expression for CallExpression {
     fn expression_node(&self) {}
+    fn as_node(&self) -> &dyn Node {
+        self
+    }
 }
 impl Node for CallExpression {
     fn token_literal(&self) -> &str {
