@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::fmt::Debug;
+use std::fmt::*;
 
 #[derive(PartialEq)]
 pub enum ObjectType {
@@ -7,6 +7,18 @@ pub enum ObjectType {
     BooleanObj,
     NullObj,
     ReturnValueObj,
+    ErrorObj,
+}
+impl Display for ObjectType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            ObjectType::IntegerObj => write!(f, "INTEGER"),
+            ObjectType::BooleanObj => write!(f, "BOOLEAN"),
+            ObjectType::NullObj => write!(f, "NULL"),
+            ObjectType::ReturnValueObj => write!(f, "RETURN_VALUE"),
+            ObjectType::ErrorObj => write!(f, "ERROR"),
+        }
+    }
 }
 
 pub trait Object: Debug {
@@ -88,6 +100,27 @@ impl Object for ReturnValue {
     fn duplicate(&self) -> Box<dyn Object> {
         Box::new(ReturnValue {
             value: self.value.duplicate(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct Error {
+    pub message: String,
+}
+impl Object for Error {
+    fn get_type(&self) -> ObjectType {
+        ObjectType::ErrorObj
+    }
+    fn inspect(&self) -> String {
+        format!("ERROR: {}", self.message)
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn duplicate(&self) -> Box<dyn Object> {
+        Box::new(Error {
+            message: self.message.clone(),
         })
     }
 }

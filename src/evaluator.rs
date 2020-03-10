@@ -9,7 +9,7 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     let any_node = node.as_any();
     let program = any_node.downcast_ref::<Program>();
     if program.is_some() {
-        return eval_statements(&program.unwrap().statements);
+        return eval_program(program.unwrap());
     }
     let expression_stmt = any_node.downcast_ref::<ExpressionStmt>();
     if expression_stmt.is_some() {
@@ -29,6 +29,9 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     if prefix_exp.is_some() {
         let right = eval(prefix_exp.unwrap().right.as_node());
         if right.is_some() {
+            if is_error(&right) {
+                return Some(right.unwrap());
+            }
             return eval_prefix_expression(&prefix_exp.unwrap().operator, right.unwrap());
         }
     }
@@ -36,8 +39,14 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     if infix_exp.is_some() {
         let left = eval(infix_exp.unwrap().left.as_node());
         if left.is_some() {
+            if is_error(&left) {
+                return Some(left.unwrap());
+            }
             let right = eval(infix_exp.unwrap().right.as_node());
             if right.is_some() {
+                if is_error(&right) {
+                    return Some(right.unwrap());
+                }
                 return eval_infix_expression(
                     &infix_exp.unwrap().operator,
                     left.unwrap(),
@@ -48,7 +57,7 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     }
     let block_stmt = any_node.downcast_ref::<BlockStatement>();
     if block_stmt.is_some() {
-        return eval_statements(&block_stmt.unwrap().statements);
+        return eval_block_statements(block_stmt.unwrap());
     }
     let if_exp = any_node.downcast_ref::<IfExpression>();
     if if_exp.is_some() {
@@ -58,6 +67,9 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     if return_stmt.is_some() {
         let val = eval(return_stmt.unwrap().return_value.as_node());
         if val.is_some() {
+            if is_error(&val) {
+                return Some(val.unwrap());
+            }
             return Some(Box::new(ReturnValue {
                 value: val.unwrap(),
             }));
@@ -66,22 +78,49 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     None
 }
 
-fn eval_statements(stmts: &Vec<Box<dyn Statement>>) -> Option<Box<dyn Object>> {
+fn is_error(obj: &Option<Box<dyn Object>>) -> bool {
+    if obj.is_some() {
+        return obj.as_ref().unwrap().get_type() == ObjectType::ErrorObj;
+    }
+    false
+}
+
+fn eval_program(program: &Program) -> Option<Box<dyn Object>> {
     let mut result: Option<Box<dyn Object>> = None;
-    for statement in stmts.iter() {
+    for statement in program.statements.iter() {
         result = eval(statement.as_node());
 
         if result.is_some() {
-            match result
+            let return_value = result
                 .as_ref()
                 .unwrap()
                 .as_any()
-                .downcast_ref::<ReturnValue>()
-            {
-                Some(return_value) => {
-                    return Some(return_value.value.duplicate());
-                }
-                _ => {}
+                .downcast_ref::<ReturnValue>();
+            if return_value.is_some() {
+                return Some(return_value.unwrap().value.duplicate());
+            }
+
+            let error = result
+                .as_ref()
+                .unwrap()
+                .as_any()
+                .downcast_ref::<super::object::Error>();
+            if error.is_some() {
+                return Some(error.unwrap().duplicate());
+            }
+        }
+    }
+    result
+}
+
+fn eval_block_statements(block: &BlockStatement) -> Option<Box<dyn Object>> {
+    let mut result: Option<Box<dyn Object>> = None;
+    for statement in block.statements.iter() {
+        result = eval(statement.as_node());
+        if result.is_some() {
+            let rt = result.as_ref().unwrap().get_type();
+            if rt == ObjectType::ReturnValueObj || rt == ObjectType::ErrorObj {
+                return Some(result.unwrap().duplicate());
             }
         }
     }
@@ -92,7 +131,11 @@ fn eval_prefix_expression(operator: &str, right: Box<dyn Object>) -> Option<Box<
     match operator {
         "!" => eval_bang_operator_expression(right),
         "-" => eval_minus_prefix_operator_expression(right),
-        _ => Some(Box::new(NULL)),
+        _ => Some(Box::new(new_error(format_args!(
+            "unknown operator: {}{}",
+            operator,
+            right.get_type()
+        )))),
     }
 }
 
@@ -119,7 +162,10 @@ fn native_bool_to_boolean_object(val: bool) -> Option<Box<dyn Object>> {
 
 fn eval_minus_prefix_operator_expression(right: Box<dyn Object>) -> Option<Box<dyn Object>> {
     if right.get_type() != ObjectType::IntegerObj {
-        return None;
+        return Some(Box::new(new_error(format_args!(
+            "unknown operator: -{}",
+            right.get_type()
+        ))));
     }
 
     let value = right.as_any().downcast_ref::<Integer>().unwrap().value;
@@ -137,7 +183,20 @@ fn eval_infix_expression(
     if left.get_type() == ObjectType::BooleanObj && right.get_type() == ObjectType::BooleanObj {
         return eval_boolean_infix_expression(operator, left, right);
     }
-    Some(Box::new(NULL))
+    if left.get_type() != right.get_type() {
+        return Some(Box::new(new_error(format_args!(
+            "type mismatch: {} {} {}",
+            left.get_type(),
+            operator,
+            right.get_type()
+        ))));
+    }
+    Some(Box::new(new_error(format_args!(
+        "unknown operator: {} {} {}",
+        left.get_type(),
+        operator,
+        right.get_type()
+    ))))
 }
 
 fn eval_integer_infix_expression(
@@ -164,7 +223,12 @@ fn eval_integer_infix_expression(
         ">" => native_bool_to_boolean_object(left_val > right_val),
         "==" => native_bool_to_boolean_object(left_val == right_val),
         "!=" => native_bool_to_boolean_object(left_val != right_val),
-        _ => Some(Box::new(NULL)),
+        _ => Some(Box::new(new_error(format_args!(
+            "unknown operator: {} {} {}",
+            left.get_type(),
+            operator,
+            right.get_type()
+        )))),
     }
 }
 
@@ -186,7 +250,12 @@ fn eval_boolean_infix_expression(
     match operator {
         "==" => native_bool_to_boolean_object(left_val == right_val),
         "!=" => native_bool_to_boolean_object(left_val != right_val),
-        _ => None,
+        _ => Some(Box::new(new_error(format_args!(
+            "unknown operator: {} {} {}",
+            left.get_type(),
+            operator,
+            right.get_type()
+        )))),
     }
 }
 
@@ -216,5 +285,11 @@ fn is_truthy(obj: Option<Box<dyn Object>>) -> bool {
             return true;
         }
         _ => false,
+    }
+}
+
+fn new_error(args: std::fmt::Arguments<'_>) -> super::object::Error {
+    super::object::Error {
+        message: std::fmt::format(args),
     }
 }

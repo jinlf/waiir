@@ -147,10 +147,54 @@ fn test_return_statement() {
         ("return 10; 9;", 10),
         ("return 2 * 5; 9;", 10),
         ("9; return 2 * 5; 9;", 10),
+        (
+            "if (10 > 1) { if (10 > 1) {
+            return 10; }
+            return 1; }",
+            10,
+        ),
     ];
 
     for tt in tests.iter() {
         let evaluated = test_eval(tt.0);
         test_integer_object(evaluated, tt.1);
+    }
+}
+
+#[test]
+fn test_error_handling() {
+    let tests = [
+        ("5 + true;", "type mismatch: INTEGER + BOOLEAN"),
+        ("5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"),
+        ("-true", "unknown operator: -BOOLEAN"),
+        ("true + false;", "unknown operator: BOOLEAN + BOOLEAN"),
+        ("5; true + false; 5", "unknown operator: BOOLEAN + BOOLEAN"),
+        (
+            "if (10 > 1) { true + false; }",
+            "unknown operator: BOOLEAN + BOOLEAN",
+        ),
+        (
+            "if (10 > 1) {
+                if (10 > 1) {
+                    return true + false;
+                }
+                return 1;
+            }",
+            "unknown operator: BOOLEAN + BOOLEAN",
+        ),
+    ];
+
+    for tt in tests.iter() {
+        let evaluated = test_eval(tt.0);
+        let err_obj = evaluated
+            .as_any()
+            .downcast_ref::<Error>()
+            .expect(&format!("no error object returned. got={:?}", evaluated));
+        assert!(
+            err_obj.message == tt.1,
+            "wrong error message. expected={}, got={}",
+            err_obj.message,
+            tt.1
+        );
     }
 }
