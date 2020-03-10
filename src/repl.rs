@@ -1,4 +1,4 @@
-use super::ast::*;
+use super::evaluator::*;
 use super::lexer::*;
 use super::parser::*;
 use std::io::BufRead;
@@ -37,8 +37,13 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
             continue;
         }
 
-        fmt.write_fmt(format_args!("{}\n", program.unwrap().string()))
-            .unwrap();
+        match eval(&program.unwrap()) {
+            Some(evaluated) => {
+                fmt.write_fmt(format_args!("{}\n", evaluated.inspect()))
+                    .unwrap();
+            }
+            _ => {}
+        }
     }
 }
 
