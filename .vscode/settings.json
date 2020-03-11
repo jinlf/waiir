@@ -1,0 +1,10 @@
+{
+    "window.title": "${dirty}${activeEditorLong}${separator}${rootName}${separator}${appName}",
+    "files.exclude":{
+          "**/*.meta":true
+    },
+    "rust.rustfmt_path": "~/.rustup/toolchains/stable-x86_64-apple-darwin/bin/rustfmt",
+    "rust-client.rlsPath": "~/.rustup/toolchains/stable-x86_64-apple-darwin/bin/rls",
+    "editor.formatOnSave": true,
+    "editor.detectIndentation": false,
+}

@@ -1,3 +1,5 @@
+use super::ast::*;
+use super::environment::*;
 use std::any::Any;
 use std::fmt::*;
 
@@ -8,6 +10,7 @@ pub enum ObjectType {
     NullObj,
     ReturnValueObj,
     ErrorObj,
+    FunctionObj,
 }
 impl Display for ObjectType {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -17,6 +20,7 @@ impl Display for ObjectType {
             ObjectType::NullObj => write!(f, "NULL"),
             ObjectType::ReturnValueObj => write!(f, "RETURN_VALUE"),
             ObjectType::ErrorObj => write!(f, "ERROR"),
+            ObjectType::FunctionObj => write!(f, "FUNCTION"),
         }
     }
 }
@@ -122,5 +126,37 @@ impl Object for Error {
         Box::new(Error {
             message: self.message.clone(),
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct Function {
+    pub function_literal: Box<&FunctionLiteral>,
+    pub env: Box<&Environment>,
+}
+impl Object for Function {
+    fn get_type(&self) -> ObjectType {
+        ObjectType::FunctionObj
+    }
+    fn inspect(&self) -> String {
+        let mut out = String::new();
+        let mut params: Vec<String> = Vec::new();
+        // for p in self.function_literal.parameters.iter() {       //TODO
+        //     params.push(p.string());
+        // }
+        out.push_str("fn");
+        out.push_str("(");
+        out.push_str(&params.join(", "));
+        out.push_str(") {\n");
+        // out.push_str(&self.function_literal.body.string());      //TODO
+        out.push_str("\n}");
+        out
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn duplicate(&self) -> Box<dyn Object> {
+        assert!(false, "Unimplementd");
+        Box::new(Null {})
     }
 }

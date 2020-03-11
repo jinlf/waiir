@@ -1,10 +1,11 @@
 include!("lib.rs");
 
 fn main() {
+    let mut env = environment::new_environment();
     let mut l = lexer::Lexer::new("true + false;");
     let mut p = parser::Parser::new(&mut l);
     let program = p.parse_program().unwrap();
-    let result = evaluator::eval(&program);
+    let result = evaluator::eval(&program, &mut env);
     println!("{:?}", result);
     println!("Hello! This is the Monkey programming language!");
     println!("Feel free to type in commands");

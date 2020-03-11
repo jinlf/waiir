@@ -1,19 +1,20 @@
 use super::ast::*;
+use super::environment::*;
 use super::object::*;
 
 pub const TRUE: super::object::Boolean = super::object::Boolean { value: true };
 pub const FALSE: super::object::Boolean = super::object::Boolean { value: false };
 pub const NULL: super::object::Null = super::object::Null {};
 
-pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
+pub fn eval(node: &dyn Node, env: &Environment) -> Option<Box<dyn Object>> {
     let any_node = node.as_any();
     let program = any_node.downcast_ref::<Program>();
     if program.is_some() {
-        return eval_program(program.unwrap());
+        return eval_program(program.unwrap(), env);
     }
     let expression_stmt = any_node.downcast_ref::<ExpressionStmt>();
     if expression_stmt.is_some() {
-        return eval(expression_stmt.unwrap().expression.as_node());
+        return eval(expression_stmt.unwrap().expression.as_node(), env);
     }
     let integer_literal = any_node.downcast_ref::<IntegerLiteral>();
     if integer_literal.is_some() {
@@ -27,7 +28,7 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     }
     let prefix_exp = any_node.downcast_ref::<PrefixExpression>();
     if prefix_exp.is_some() {
-        let right = eval(prefix_exp.unwrap().right.as_node());
+        let right = eval(prefix_exp.unwrap().right.as_node(), env);
         if right.is_some() {
             if is_error(&right) {
                 return Some(right.unwrap());
@@ -37,12 +38,12 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     }
     let infix_exp = any_node.downcast_ref::<InfixExpression>();
     if infix_exp.is_some() {
-        let left = eval(infix_exp.unwrap().left.as_node());
+        let left = eval(infix_exp.unwrap().left.as_node(), env);
         if left.is_some() {
             if is_error(&left) {
                 return Some(left.unwrap());
             }
-            let right = eval(infix_exp.unwrap().right.as_node());
+            let right = eval(infix_exp.unwrap().right.as_node(), env);
             if right.is_some() {
                 if is_error(&right) {
                     return Some(right.unwrap());
@@ -57,15 +58,15 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
     }
     let block_stmt = any_node.downcast_ref::<BlockStatement>();
     if block_stmt.is_some() {
-        return eval_block_statements(block_stmt.unwrap());
+        return eval_block_statements(block_stmt.unwrap(), env);
     }
     let if_exp = any_node.downcast_ref::<IfExpression>();
     if if_exp.is_some() {
-        return eval_if_expression(if_exp.unwrap());
+        return eval_if_expression(if_exp.unwrap(), env);
     }
     let return_stmt = any_node.downcast_ref::<ReturnStatement>();
     if return_stmt.is_some() {
-        let val = eval(return_stmt.unwrap().return_value.as_node());
+        let val = eval(return_stmt.unwrap().return_value.as_node(), env);
         if val.is_some() {
             if is_error(&val) {
                 return Some(val.unwrap());
@@ -74,6 +75,25 @@ pub fn eval(node: &dyn Node) -> Option<Box<dyn Object>> {
                 value: val.unwrap(),
             }));
         }
+    }
+    let let_stmt = any_node.downcast_ref::<LetStatement>();
+    if let_stmt.is_some() {
+        let val = eval(let_stmt.unwrap().value.as_node(), env);
+        if is_error(&val) {
+            return Some(val.unwrap());
+        }
+        env.set(let_stmt.unwrap().name.value.clone(), val.unwrap());
+    }
+    let ident = any_node.downcast_ref::<Identifier>();
+    if ident.is_some() {
+        return eval_identifier(ident.unwrap(), env);
+    }
+    let function_literal = any_node.downcast_ref::<FunctionLiteral>();
+    if function_literal.is_some() {
+        return Some(Box::new(Function {
+            function_literal: Box::new(function_literal.unwrap()),
+            env: Box::new(*env),
+        }));
     }
     None
 }
@@ -85,10 +105,10 @@ fn is_error(obj: &Option<Box<dyn Object>>) -> bool {
     false
 }
 
-fn eval_program(program: &Program) -> Option<Box<dyn Object>> {
+fn eval_program(program: &Program, env: &Environment) -> Option<Box<dyn Object>> {
     let mut result: Option<Box<dyn Object>> = None;
     for statement in program.statements.iter() {
-        result = eval(statement.as_node());
+        result = eval(statement.as_node(), env);
 
         if result.is_some() {
             let return_value = result
@@ -113,10 +133,10 @@ fn eval_program(program: &Program) -> Option<Box<dyn Object>> {
     result
 }
 
-fn eval_block_statements(block: &BlockStatement) -> Option<Box<dyn Object>> {
+fn eval_block_statements(block: &BlockStatement, env: &Environment) -> Option<Box<dyn Object>> {
     let mut result: Option<Box<dyn Object>> = None;
     for statement in block.statements.iter() {
-        result = eval(statement.as_node());
+        result = eval(statement.as_node(), env);
         if result.is_some() {
             let rt = result.as_ref().unwrap().get_type();
             if rt == ObjectType::ReturnValueObj || rt == ObjectType::ErrorObj {
@@ -259,12 +279,15 @@ fn eval_boolean_infix_expression(
     }
 }
 
-fn eval_if_expression(ie: &IfExpression) -> Option<Box<dyn Object>> {
-    let condition = eval(ie.condition.as_node());
+fn eval_if_expression(ie: &IfExpression, env: &Environment) -> Option<Box<dyn Object>> {
+    let condition = eval(ie.condition.as_node(), env);
+    if condition.is_some() && is_error(&condition) {
+        return Some(condition.unwrap());
+    }
     if is_truthy(condition) {
-        return eval(ie.consequence.as_node());
+        return eval(ie.consequence.as_node(), env);
     } else if ie.alternative.is_some() {
-        return eval(ie.alternative.as_ref().unwrap().as_node());
+        return eval(ie.alternative.as_ref().unwrap().as_node(), env);
     } else {
         return Some(Box::new(NULL));
     }
@@ -291,5 +314,15 @@ fn is_truthy(obj: Option<Box<dyn Object>>) -> bool {
 fn new_error(args: std::fmt::Arguments<'_>) -> super::object::Error {
     super::object::Error {
         message: std::fmt::format(args),
+    }
+}
+
+fn eval_identifier(node: &Identifier, env: &Environment) -> Option<Box<dyn Object>> {
+    match env.get(&node.value) {
+        Some(val) => Some(val.duplicate()),
+        _ => Some(Box::new(new_error(format_args!(
+            "identifier not found: {}",
+            node.value
+        )))),
     }
 }

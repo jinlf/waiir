@@ -1,15 +1,18 @@
 extern crate waiir;
+use waiir::ast::*;
+use waiir::environment::*;
 use waiir::evaluator::*;
 use waiir::lexer::*;
 use waiir::object::*;
 use waiir::parser::*;
 
 fn test_eval(input: &str) -> Box<dyn Object> {
+    let mut env = new_environment();
     let mut l = Lexer::new(input);
     let mut p = Parser::new(&mut l);
     let program = p.parse_program().unwrap();
 
-    eval(&program).unwrap()
+    eval(&program, &mut env).unwrap()
 }
 
 #[test]
@@ -81,7 +84,7 @@ fn test_eval_boolean_expression() {
 fn test_boolean_object(obj: Box<dyn Object>, expected: bool) {
     let result = obj
         .as_any()
-        .downcast_ref::<Boolean>()
+        .downcast_ref::<waiir::object::Boolean>()
         .expect(&format!("object is not Boolean. got={:?}", obj));
     assert!(
         result.value == expected,
@@ -182,6 +185,7 @@ fn test_error_handling() {
             }",
             "unknown operator: BOOLEAN + BOOLEAN",
         ),
+        ("foobar", "identifier not found: foobar"),
     ];
 
     for tt in tests.iter() {
@@ -196,5 +200,65 @@ fn test_error_handling() {
             err_obj.message,
             tt.1
         );
+    }
+}
+
+#[test]
+fn test_let_statements() {
+    let tests = [
+        ("let a = 5; a;", 5),
+        ("let a = 5 * 5; a;", 25),
+        ("let a = 5; let b = a; b;", 5),
+        ("let a = 5; let b = a; let c = a + b + 5; c;", 15),
+    ];
+
+    for tt in tests.iter() {
+        test_integer_object(test_eval(tt.0), tt.1);
+    }
+}
+
+#[test]
+fn test_function_object() {
+    let input = "fn(x) { x + 2; };";
+    let evaluated = test_eval(input);
+    let func = evaluated
+        .as_any()
+        .downcast_ref::<Function>()
+        .expect(&format!("object is not Function. got={:?}", evaluated));
+
+    assert!(
+        func.parameters.len() == 1,
+        "function has wrong parameters. parameters={:?}",
+        func.parameters
+    );
+
+    assert!(
+        func.parameters[0].string() == "x",
+        "parameter is not 'x'. got={:?}",
+        func.parameters[0]
+    );
+
+    let expected_body = "(x + 2)";
+    assert!(
+        func.body.string() == expected_body,
+        "body is not {}. got={}",
+        expected_body,
+        func.body.string()
+    );
+}
+
+#[test]
+fn test_function_application() {
+    let tests = [
+        ("let identity = fn(x) { x; }; identity(5);", 5),
+        ("let identity = fn(x) { return x; }; identity(5);", 5),
+        ("let double = fn(x) { x * 2; }; double(5);", 10),
+        ("let add = fn(x, y) { x + y; }; add(5, 5);", 10),
+        ("let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20),
+        ("fn(x) { x; }(5)", 5),
+    ];
+
+    for tt in tests.iter() {
+        test_integer_object(test_eval(tt.0), tt.1);
     }
 }
