@@ -6,7 +6,7 @@ pub const TRUE: super::object::Boolean = super::object::Boolean { value: true };
 pub const FALSE: super::object::Boolean = super::object::Boolean { value: false };
 pub const NULL: super::object::Null = super::object::Null {};
 
-pub fn eval(node: &dyn Node, env: &Environment) -> Option<Box<dyn Object>> {
+pub fn eval(node: &dyn Node, env: &mut Environment) -> Option<Box<dyn Object>> {
     let any_node = node.as_any();
     let program = any_node.downcast_ref::<Program>();
     if program.is_some() {
@@ -90,12 +90,90 @@ pub fn eval(node: &dyn Node, env: &Environment) -> Option<Box<dyn Object>> {
     }
     let function_literal = any_node.downcast_ref::<FunctionLiteral>();
     if function_literal.is_some() {
+        let func_lit = function_literal.unwrap();
         return Some(Box::new(Function {
-            function_literal: Box::new(function_literal.unwrap()),
-            env: Box::new(*env),
+            function_literal: Box::new(unsafe {
+                std::mem::transmute::<&FunctionLiteral, &'static FunctionLiteral>(func_lit)
+            }),
+            env: Box::new(unsafe {
+                std::mem::transmute::<&mut Environment, &'static Environment>(env)
+            }),
         }));
     }
+    let call_exp = any_node.downcast_ref::<CallExpression>();
+    if call_exp.is_some() {
+        let function = eval(call_exp.unwrap().function.as_node(), env);
+        if is_error(&function) {
+            return Some(function.unwrap());
+        }
+
+        let args = eval_expression(&call_exp.unwrap().arguments, env);
+        if args.len() == 1 && is_error(&args[0]) {
+            return Some(args[0].as_ref().unwrap().duplicate());
+        }
+
+        return apply_function(function.unwrap(), args);
+    }
     None
+}
+
+fn apply_function(
+    func: Box<dyn Object>,
+    args: Vec<Option<Box<dyn Object>>>,
+) -> Option<Box<dyn Object>> {
+    let function = func.as_any().downcast_ref::<Function>();
+    if function.is_none() {
+        return Some(Box::new(new_error(format_args!(
+            "not a function: {}",
+            func.get_type()
+        ))));
+    }
+
+    let mut extended_env = extend_function_env(function.unwrap(), args);
+    let evaluated = eval(
+        function.unwrap().function_literal.body.as_node(),
+        &mut extended_env,
+    );
+    return unwrap_return_value(evaluated);
+}
+
+fn unwrap_return_value(obj: Option<Box<dyn Object>>) -> Option<Box<dyn Object>> {
+    if obj.is_none() {
+        return obj;
+    }
+    match obj.as_ref().unwrap().as_any().downcast_ref::<ReturnValue>() {
+        Some(return_value) => Some(return_value.duplicate()),
+        _ => obj,
+    }
+}
+
+fn extend_function_env(
+    func: &Function,
+    args: Vec<Option<Box<dyn Object>>>,
+) -> Environment<'static> {
+    let mut env = new_enclosed_environment(&func.env);
+    for (param_idx, param) in func.function_literal.parameters.iter().enumerate() {
+        env.set(
+            param.value.clone(),
+            args[param_idx].as_ref().unwrap().duplicate(),
+        );
+    }
+    env
+}
+
+fn eval_expression(
+    exps: &Vec<Box<dyn Expression>>,
+    env: &mut Environment,
+) -> Vec<Option<Box<dyn Object>>> {
+    let mut result: Vec<Option<Box<dyn Object>>> = Vec::new();
+    for e in exps.iter() {
+        let evaluated = eval(e.as_node(), env);
+        if is_error(&evaluated) {
+            return vec![evaluated];
+        }
+        result.push(evaluated);
+    }
+    result
 }
 
 fn is_error(obj: &Option<Box<dyn Object>>) -> bool {
@@ -105,7 +183,7 @@ fn is_error(obj: &Option<Box<dyn Object>>) -> bool {
     false
 }
 
-fn eval_program(program: &Program, env: &Environment) -> Option<Box<dyn Object>> {
+fn eval_program(program: &Program, env: &mut Environment) -> Option<Box<dyn Object>> {
     let mut result: Option<Box<dyn Object>> = None;
     for statement in program.statements.iter() {
         result = eval(statement.as_node(), env);
@@ -133,7 +211,7 @@ fn eval_program(program: &Program, env: &Environment) -> Option<Box<dyn Object>>
     result
 }
 
-fn eval_block_statements(block: &BlockStatement, env: &Environment) -> Option<Box<dyn Object>> {
+fn eval_block_statements(block: &BlockStatement, env: &mut Environment) -> Option<Box<dyn Object>> {
     let mut result: Option<Box<dyn Object>> = None;
     for statement in block.statements.iter() {
         result = eval(statement.as_node(), env);
@@ -279,7 +357,7 @@ fn eval_boolean_infix_expression(
     }
 }
 
-fn eval_if_expression(ie: &IfExpression, env: &Environment) -> Option<Box<dyn Object>> {
+fn eval_if_expression(ie: &IfExpression, env: &mut Environment) -> Option<Box<dyn Object>> {
     let condition = eval(ie.condition.as_node(), env);
     if condition.is_some() && is_error(&condition) {
         return Some(condition.unwrap());

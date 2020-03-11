@@ -227,23 +227,23 @@ fn test_function_object() {
         .expect(&format!("object is not Function. got={:?}", evaluated));
 
     assert!(
-        func.parameters.len() == 1,
+        func.function_literal.parameters.len() == 1,
         "function has wrong parameters. parameters={:?}",
-        func.parameters
+        func.function_literal.parameters
     );
 
     assert!(
-        func.parameters[0].string() == "x",
+        func.function_literal.parameters[0].string() == "x",
         "parameter is not 'x'. got={:?}",
-        func.parameters[0]
+        func.function_literal.parameters[0]
     );
 
     let expected_body = "(x + 2)";
     assert!(
-        func.body.string() == expected_body,
+        func.function_literal.body.string() == expected_body,
         "body is not {}. got={}",
         expected_body,
-        func.body.string()
+        func.function_literal.body.string()
     );
 }
 
@@ -261,4 +261,16 @@ fn test_function_application() {
     for tt in tests.iter() {
         test_integer_object(test_eval(tt.0), tt.1);
     }
+}
+
+#[test]
+fn test_closures() {
+    let input = "let newAdder = fn(x) {
+            fn(y) { x + y };
+        };
+        let addTwo = newAdder(2);
+        addTwo(2);
+        ";
+
+    test_integer_object(test_eval(input), 4);
 }

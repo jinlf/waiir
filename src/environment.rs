@@ -1,33 +1,38 @@
 use super::object::*;
-use std::cell::*;
 use std::collections::HashMap;
-use std::rc::*;
 
 #[derive(Debug)]
-pub struct Environment {
-    store: Rc<RefCell<HashMap<String, Box<dyn Object>>>>,
+pub struct Environment<'a> {
+    store: HashMap<String, Box<dyn Object>>,
+    outer: Option<&'a Environment<'a>>,
 }
-impl Environment {
-    pub fn get(&self, name: &String) -> Option<Box<dyn Object>> {
-        match self.store.borrow().get(name) {
-            Some(v) => Some(v.duplicate()),
-            _ => None,
+impl<'a> Environment<'a> {
+    pub fn get(&self, name: &String) -> Option<&Box<dyn Object>> {
+        match self.store.get(name) {
+            Some(obj) => Some(obj),
+            _ => match self.outer {
+                Some(outer) => outer.get(name),
+                _ => None,
+            },
         }
     }
-    pub fn set(&self, name: String, val: Box<dyn Object>) -> Option<Box<dyn Object>> {
-        match self
-            .store
-            .borrow_mut()
-            .insert(name.clone(), val.duplicate())
-        {
+    pub fn set(&mut self, name: String, val: Box<dyn Object>) -> Option<&Box<dyn Object>> {
+        match self.store.insert(name.clone(), val) {
             Some(_) => None,
             _ => self.get(&name),
         }
     }
 }
 
-pub fn new_environment() -> Environment {
+pub fn new_environment<'a>() -> Environment<'a> {
     Environment {
-        store: Rc::new(RefCell::new(HashMap::new())),
+        store: HashMap::new(),
+        outer: None,
     }
+}
+
+pub fn new_enclosed_environment<'a>(outer: &'a Environment) -> Environment<'a> {
+    let mut env = new_environment();
+    env.outer = Some(outer);
+    env
 }

@@ -131,8 +131,8 @@ impl Object for Error {
 
 #[derive(Debug)]
 pub struct Function {
-    pub function_literal: Box<&FunctionLiteral>,
-    pub env: Box<&Environment>,
+    pub function_literal: Box<&'static FunctionLiteral>,
+    pub env: Box<&'static Environment<'static>>,
 }
 impl Object for Function {
     fn get_type(&self) -> ObjectType {
@@ -141,14 +141,14 @@ impl Object for Function {
     fn inspect(&self) -> String {
         let mut out = String::new();
         let mut params: Vec<String> = Vec::new();
-        // for p in self.function_literal.parameters.iter() {       //TODO
-        //     params.push(p.string());
-        // }
+        for p in self.function_literal.parameters.iter() {
+            params.push(p.string());
+        }
         out.push_str("fn");
         out.push_str("(");
         out.push_str(&params.join(", "));
         out.push_str(") {\n");
-        // out.push_str(&self.function_literal.body.string());      //TODO
+        out.push_str(&self.function_literal.body.string());
         out.push_str("\n}");
         out
     }
@@ -156,7 +156,9 @@ impl Object for Function {
         self
     }
     fn duplicate(&self) -> Box<dyn Object> {
-        assert!(false, "Unimplementd");
-        Box::new(Null {})
+        Box::new(Function {
+            function_literal: Box::new(*self.function_literal),
+            env: Box::new(*self.env),
+        })
     }
 }
