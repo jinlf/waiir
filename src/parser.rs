@@ -26,23 +26,23 @@ impl<'a> Parser<'a> {
     pub fn new(lex: &'a mut Lexer<'a>) -> Parser<'a> {
         let mut p = Parser {
             l: lex,
-            cur_token: Token::new(TokenType::ILLEGAL, 0 as char),
-            peek_token: Token::new(TokenType::ILLEGAL, 0 as char),
+            cur_token: Token::new(TokenType::Illegal, 0 as char),
+            peek_token: Token::new(TokenType::Illegal, 0 as char),
             errors: Vec::new(),
             precedences: HashMap::new(),
         };
-        p.precedences.insert(TokenType::EQ, Precedence::EQUALS);
-        p.precedences.insert(TokenType::NOTEQ, Precedence::EQUALS);
+        p.precedences.insert(TokenType::Eq, Precedence::EQUALS);
+        p.precedences.insert(TokenType::NotEq, Precedence::EQUALS);
         p.precedences
-            .insert(TokenType::LT, Precedence::LESSGEREATER);
+            .insert(TokenType::Lt, Precedence::LESSGEREATER);
         p.precedences
-            .insert(TokenType::GT, Precedence::LESSGEREATER);
-        p.precedences.insert(TokenType::PLUS, Precedence::SUM);
-        p.precedences.insert(TokenType::MINUS, Precedence::SUM);
-        p.precedences.insert(TokenType::SLASH, Precedence::PRODUCT);
+            .insert(TokenType::Gt, Precedence::LESSGEREATER);
+        p.precedences.insert(TokenType::Plus, Precedence::SUM);
+        p.precedences.insert(TokenType::Minus, Precedence::SUM);
+        p.precedences.insert(TokenType::Slash, Precedence::PRODUCT);
         p.precedences
-            .insert(TokenType::ASTERISK, Precedence::PRODUCT);
-        p.precedences.insert(TokenType::LPAREN, Precedence::CALL);
+            .insert(TokenType::Asterisk, Precedence::PRODUCT);
+        p.precedences.insert(TokenType::Lparen, Precedence::CALL);
 
         p.next_token();
         p.next_token();
@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
         let mut program = Program {
             statements: Vec::new(),
         };
-        while self.cur_token.tk_type != TokenType::EOF {
+        while self.cur_token.tk_type != TokenType::Eof {
             let stmt = self.parse_statement();
             if stmt.is_some() {
                 program.statements.push(stmt.unwrap());
@@ -113,8 +113,8 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> Option<Box<dyn Statement>> {
         println!("parse_statement: {:?}", self.cur_token);
         match self.cur_token.tk_type {
-            TokenType::LET => self.parse_let_statement(),
-            TokenType::RETURN => self.parse_return_statement(),
+            TokenType::Let => self.parse_let_statement(),
+            TokenType::Return => self.parse_return_statement(),
             _ => self.parse_expression_statement(),
         }
     }
@@ -123,14 +123,14 @@ impl<'a> Parser<'a> {
         println!("parse_let_statement: {:?}", self.cur_token);
         let token = self.cur_token.clone();
 
-        if !self.expect_peek(TokenType::IDENT) {
+        if !self.expect_peek(TokenType::Ident) {
             return None;
         }
 
         let name_token = self.cur_token.clone();
         let name_value = self.cur_token.literal.clone();
 
-        if !self.expect_peek(TokenType::ASSIGN) {
+        if !self.expect_peek(TokenType::Assign) {
             return None;
         }
 
@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
             value: value.unwrap(),
         };
 
-        while !self.cur_token_is(TokenType::SEMICOLON) {
+        while !self.cur_token_is(TokenType::Semicolon) {
             self.next_token();
         }
         Some(Box::new(stmt))
@@ -169,7 +169,7 @@ impl<'a> Parser<'a> {
             return_value: return_value.unwrap(),
         };
 
-        if self.peek_token_is(TokenType::SEMICOLON) {
+        if self.peek_token_is(TokenType::Semicolon) {
             self.next_token();
         }
 
@@ -188,7 +188,7 @@ impl<'a> Parser<'a> {
             expression: expression.unwrap(),
         };
 
-        if self.peek_token_is(TokenType::SEMICOLON) {
+        if self.peek_token_is(TokenType::Semicolon) {
             self.next_token();
         }
         Some(Box::new(stmt))
@@ -198,31 +198,31 @@ impl<'a> Parser<'a> {
         println!("parse_expression: {:?}", self.cur_token);
         let mut left_exp: Option<Box<dyn Expression>>;
         match self.cur_token.tk_type {
-            TokenType::IDENT => {
+            TokenType::Ident => {
                 left_exp = self.parse_identifier();
             }
-            TokenType::INT => {
+            TokenType::Int => {
                 left_exp = self.parse_integer_literal();
             }
-            TokenType::BANG => {
+            TokenType::Bang => {
                 left_exp = self.parse_prefix_expression();
             }
-            TokenType::MINUS => {
+            TokenType::Minus => {
                 left_exp = self.parse_prefix_expression();
             }
-            TokenType::TRUE => {
+            TokenType::True => {
                 left_exp = self.parse_boolean();
             }
-            TokenType::FALSE => {
+            TokenType::False => {
                 left_exp = self.parse_boolean();
             }
-            TokenType::LPAREN => {
+            TokenType::Lparen => {
                 left_exp = self.parse_grouped_expression();
             }
-            TokenType::IF => {
+            TokenType::If => {
                 left_exp = self.parse_if_expression();
             }
-            TokenType::FUNCTION => {
+            TokenType::Function => {
                 left_exp = self.parse_function_literal();
             }
             _ => {
@@ -235,41 +235,41 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        while !self.peek_token_is(TokenType::SEMICOLON) && precedence < self.peek_precedence() {
+        while !self.peek_token_is(TokenType::Semicolon) && precedence < self.peek_precedence() {
             match self.peek_token.tk_type {
-                TokenType::PLUS => {
+                TokenType::Plus => {
                     self.next_token();
                     left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
-                TokenType::MINUS => {
+                TokenType::Minus => {
                     self.next_token();
                     left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
-                TokenType::SLASH => {
+                TokenType::Slash => {
                     self.next_token();
                     left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
-                TokenType::ASTERISK => {
+                TokenType::Asterisk => {
                     self.next_token();
                     left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
-                TokenType::EQ => {
+                TokenType::Eq => {
                     self.next_token();
                     left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
-                TokenType::NOTEQ => {
+                TokenType::NotEq => {
                     self.next_token();
                     left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
-                TokenType::LT => {
+                TokenType::Lt => {
                     self.next_token();
                     left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
-                TokenType::GT => {
+                TokenType::Gt => {
                     self.next_token();
                     left_exp = self.parse_infix_expression(left_exp.unwrap());
                 }
-                TokenType::LPAREN => {
+                TokenType::Lparen => {
                     self.next_token();
                     left_exp = self.parse_call_expression(left_exp.unwrap());
                 }
@@ -358,7 +358,7 @@ impl<'a> Parser<'a> {
         println!("parse_boolean: {:?}", self.cur_token);
         Some(Box::new(Boolean {
             token: self.cur_token.clone(),
-            value: self.cur_token_is(TokenType::TRUE),
+            value: self.cur_token_is(TokenType::True),
         }))
     }
 
@@ -366,7 +366,7 @@ impl<'a> Parser<'a> {
         println!("parse_grouped_expression: {:?}", self.cur_token);
         self.next_token();
         let exp = self.parse_expression(Precedence::LOWEST);
-        if !self.expect_peek(TokenType::RPAREN) {
+        if !self.expect_peek(TokenType::Rparen) {
             None
         } else {
             exp
@@ -376,7 +376,7 @@ impl<'a> Parser<'a> {
     fn parse_if_expression(&mut self) -> Option<Box<dyn Expression>> {
         println!("parse_if_expression: {:?}", self.cur_token);
         let token = self.cur_token.clone();
-        if !self.expect_peek(TokenType::LPAREN) {
+        if !self.expect_peek(TokenType::Lparen) {
             return None;
         }
         self.next_token();
@@ -384,11 +384,11 @@ impl<'a> Parser<'a> {
         if condition.is_none() {
             return None;
         }
-        if !self.expect_peek(TokenType::RPAREN) {
+        if !self.expect_peek(TokenType::Rparen) {
             return None;
         }
 
-        if !self.expect_peek(TokenType::LBRACE) {
+        if !self.expect_peek(TokenType::Lbrace) {
             return None;
         }
 
@@ -404,10 +404,10 @@ impl<'a> Parser<'a> {
             alternative: None,
         };
 
-        if self.peek_token_is(TokenType::ELSE) {
+        if self.peek_token_is(TokenType::Else) {
             self.next_token();
 
-            if !self.expect_peek(TokenType::LBRACE) {
+            if !self.expect_peek(TokenType::Lbrace) {
                 return None;
             }
 
@@ -425,7 +425,7 @@ impl<'a> Parser<'a> {
 
         self.next_token();
 
-        while !self.cur_token_is(TokenType::RBRACE) && !self.cur_token_is(TokenType::EOF) {
+        while !self.cur_token_is(TokenType::Rbrace) && !self.cur_token_is(TokenType::Eof) {
             let stmt = self.parse_statement();
             match stmt {
                 Some(s) => {
@@ -441,13 +441,13 @@ impl<'a> Parser<'a> {
     fn parse_function_literal(&mut self) -> Option<Box<dyn Expression>> {
         println!("parse_function_literal: {:?}", self.cur_token);
         let token = self.cur_token.clone();
-        if !self.expect_peek(TokenType::LPAREN) {
+        if !self.expect_peek(TokenType::Lparen) {
             return None;
         }
 
         let parameters = self.parse_function_parameters();
 
-        if !self.expect_peek(TokenType::LBRACE) {
+        if !self.expect_peek(TokenType::Lbrace) {
             return None;
         }
         let body = self.parse_block_statement();
@@ -466,7 +466,7 @@ impl<'a> Parser<'a> {
     fn parse_function_parameters(&mut self) -> Vec<Identifier> {
         println!("parse_function_parameters: {:?}", self.cur_token);
         let mut identfiers = Vec::new();
-        if self.peek_token_is(TokenType::RPAREN) {
+        if self.peek_token_is(TokenType::Rparen) {
             self.next_token();
             return identfiers;
         }
@@ -479,7 +479,7 @@ impl<'a> Parser<'a> {
         };
         identfiers.push(ident);
 
-        while self.peek_token_is(TokenType::COMMA) {
+        while self.peek_token_is(TokenType::Comma) {
             self.next_token();
             self.next_token();
             let ident = Identifier {
@@ -489,7 +489,7 @@ impl<'a> Parser<'a> {
             identfiers.push(ident);
         }
 
-        if !self.expect_peek(TokenType::RPAREN) {
+        if !self.expect_peek(TokenType::Rparen) {
             return Vec::new();
         }
         identfiers
@@ -512,7 +512,7 @@ impl<'a> Parser<'a> {
         println!("parse_call_arguments: {:?}", self.cur_token);
         let mut args: Vec<Box<dyn Expression>> = Vec::new();
 
-        if self.peek_token_is(TokenType::RPAREN) {
+        if self.peek_token_is(TokenType::Rparen) {
             self.next_token();
             return args;
         }
@@ -524,7 +524,7 @@ impl<'a> Parser<'a> {
         }
         args.push(a.unwrap());
 
-        while self.peek_token_is(TokenType::COMMA) {
+        while self.peek_token_is(TokenType::Comma) {
             self.next_token();
             self.next_token();
             let a = self.parse_expression(Precedence::LOWEST);
@@ -534,7 +534,7 @@ impl<'a> Parser<'a> {
             args.push(a.unwrap());
         }
 
-        if !self.expect_peek(TokenType::RPAREN) {
+        if !self.expect_peek(TokenType::Rparen) {
             return Vec::new();
         }
 

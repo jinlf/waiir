@@ -1,8 +1,8 @@
 use super::lexer::Token;
-use std::any::Any;
-use std::fmt::Debug;
+use std::any::*;
+use std::fmt::*;
 
-pub trait Node: Debug {
+pub trait Node: Debug + Any {
     fn token_literal(&self) -> &str;
     fn string(&self) -> String;
     fn as_any(&self) -> &dyn Any;

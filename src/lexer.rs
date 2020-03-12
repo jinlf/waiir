@@ -1,36 +1,36 @@
 #[derive(Debug, PartialEq, Copy, Clone, Hash)]
 pub enum TokenType {
-    ILLEGAL = 0,
-    EOF,
+    Illegal = 0,
+    Eof,
     // Identifiers + literals
-    IDENT, // add, foobar, x, y, ...
-    INT,
+    Ident, // add, foobar, x, y, ...
+    Int,
     // Operators
-    ASSIGN,
-    PLUS,
-    MINUS,
-    BANG = 100,
-    ASTERISK,
-    SLASH,
-    LT,
-    GT,
+    Assign,
+    Plus,
+    Minus,
+    Bang,
+    Asterisk,
+    Slash,
+    Lt,
+    Gt,
     // Delimiters
-    COMMA,
-    SEMICOLON,
-    LPAREN,
-    RPAREN,
-    LBRACE,
-    RBRACE,
+    Comma,
+    Semicolon,
+    Lparen,
+    Rparen,
+    Lbrace,
+    Rbrace,
     // Keywords
-    FUNCTION,
-    LET,
-    IF,
-    ELSE,
-    TRUE,
-    FALSE,
-    RETURN,
-    EQ,
-    NOTEQ,
+    Function,
+    Let,
+    If,
+    Else,
+    True,
+    False,
+    Return,
+    Eq,
+    NotEq,
 }
 impl std::cmp::Eq for TokenType {}
 
@@ -49,16 +49,17 @@ impl Token {
             literal: s,
         }
     }
+
     fn lookup_ident(ident: &str) -> TokenType {
         match ident {
-            "fn" => TokenType::FUNCTION,
-            "let" => TokenType::LET,
-            "if" => TokenType::IF,
-            "else" => TokenType::ELSE,
-            "return" => TokenType::RETURN,
-            "true" => TokenType::TRUE,
-            "false" => TokenType::FALSE,
-            _ => TokenType::IDENT,
+            "fn" => TokenType::Function,
+            "let" => TokenType::Let,
+            "if" => TokenType::If,
+            "else" => TokenType::Else,
+            "return" => TokenType::Return,
+            "true" => TokenType::True,
+            "false" => TokenType::False,
+            _ => TokenType::Ident,
         }
     }
 }
@@ -80,79 +81,104 @@ impl<'a> Lexer<'a> {
             read_position: 0,
             ch: NIL,
         };
+
         l.read_char();
         l
     }
 
+    fn read_char(&mut self) {
+        if self.read_position >= self.input.len() {
+            self.ch = NIL;
+        } else {
+            self.ch = self.input.chars().nth(self.read_position).unwrap()
+        }
+        self.position = self.read_position;
+        self.read_position += 1;
+    }
+
     pub fn next_token(&mut self) -> Token {
         let mut tok: Token;
+
         self.skip_whitespace();
+
         match self.ch {
             '=' => {
                 tok = {
                     let ch = self.peek_char();
                     if ch == '=' {
-                        let mut tk = Token::new(TokenType::EQ, self.ch);
-                        let mut s = String::new();
-                        s.push(self.ch);
-                        s.push(ch);
-                        tk.literal = s;
+                        let tk = Token {
+                            tk_type: TokenType::Eq,
+                            literal: format!("{}{}", self.ch, ch),
+                        };
                         self.read_position += 1;
                         tk
                     } else {
-                        Token::new(TokenType::ASSIGN, self.ch)
+                        Token::new(TokenType::Assign, self.ch)
                     }
                 }
             }
-            ';' => tok = Token::new(TokenType::SEMICOLON, self.ch),
-            '(' => tok = Token::new(TokenType::LPAREN, self.ch),
-            ')' => tok = Token::new(TokenType::RPAREN, self.ch),
-            ',' => tok = Token::new(TokenType::COMMA, self.ch),
-            '+' => tok = Token::new(TokenType::PLUS, self.ch),
-            '-' => tok = Token::new(TokenType::MINUS, self.ch),
+            ';' => tok = Token::new(TokenType::Semicolon, self.ch),
+            '(' => tok = Token::new(TokenType::Lparen, self.ch),
+            ')' => tok = Token::new(TokenType::Rparen, self.ch),
+            ',' => tok = Token::new(TokenType::Comma, self.ch),
+            '+' => tok = Token::new(TokenType::Plus, self.ch),
+            '-' => tok = Token::new(TokenType::Minus, self.ch),
             '!' => {
                 tok = {
                     let ch = self.peek_char();
                     if ch == '=' {
-                        let mut tk = Token::new(TokenType::NOTEQ, self.ch);
-                        let mut s = String::new();
-                        s.push(self.ch);
-                        s.push(ch);
-                        tk.literal = s;
+                        let tk = Token {
+                            tk_type: TokenType::NotEq,
+                            literal: format!("{}{}", self.ch, ch),
+                        };
                         self.read_position += 1;
                         tk
                     } else {
-                        Token::new(TokenType::BANG, self.ch)
+                        Token::new(TokenType::Bang, self.ch)
                     }
                 }
             }
-            '/' => tok = Token::new(TokenType::SLASH, self.ch),
-            '*' => tok = Token::new(TokenType::ASTERISK, self.ch),
-            '<' => tok = Token::new(TokenType::LT, self.ch),
-            '>' => tok = Token::new(TokenType::GT, self.ch),
-            '{' => tok = Token::new(TokenType::LBRACE, self.ch),
-            '}' => tok = Token::new(TokenType::RBRACE, self.ch),
+            '/' => tok = Token::new(TokenType::Slash, self.ch),
+            '*' => tok = Token::new(TokenType::Asterisk, self.ch),
+            '<' => tok = Token::new(TokenType::Lt, self.ch),
+            '>' => tok = Token::new(TokenType::Gt, self.ch),
+            '{' => tok = Token::new(TokenType::Lbrace, self.ch),
+            '}' => tok = Token::new(TokenType::Rbrace, self.ch),
             NIL => {
-                tok = Token::new(TokenType::EOF, self.ch);
-                tok.literal = String::new();
+                tok = Token {
+                    tk_type: TokenType::Eof,
+                    literal: String::new(),
+                }
             }
             _ => {
                 if self.ch.is_ascii_alphabetic() {
-                    tok = Token::new(TokenType::IDENT, self.ch);
-                    tok.literal = String::from(self.read_identifier());
+                    tok = Token {
+                        tk_type: TokenType::Ident,
+                        literal: self.read_identifier(),
+                    };
                     tok.tk_type = Token::lookup_ident(&tok.literal);
                     return tok; // need not read_char, show return now
                 } else if self.ch.is_ascii_digit() {
-                    tok = Token::new(TokenType::INT, self.ch);
-                    tok.literal = String::from(self.read_number());
+                    tok = Token {
+                        tk_type: TokenType::Int,
+                        literal: self.read_number(),
+                    };
                     return tok; // need not read_char, show return now
                 } else {
-                    tok = Token::new(TokenType::ILLEGAL, self.ch)
+                    tok = Token::new(TokenType::Illegal, self.ch)
                 }
             }
         }
         self.read_char();
         tok
+    }
+
+    fn read_identifier(&mut self) -> String {
+        let position = self.position;
+        while self.ch.is_ascii_alphabetic() {
+            self.read_char();
+        }
+        String::from(&self.input[position..self.position])
     }
 
     fn skip_whitespace(&mut self) {
@@ -168,30 +194,12 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn read_identifier(&mut self) -> String {
-        let position = self.position;
-        while self.ch.is_ascii_alphabetic() {
-            self.read_char();
-        }
-        String::from(&self.input[position..self.position])
-    }
-
     fn read_number(&mut self) -> String {
         let position = self.position;
         while self.ch.is_ascii_digit() {
             self.read_char();
         }
         String::from(&self.input[position..self.position])
-    }
-
-    fn read_char(&mut self) {
-        if self.read_position >= self.input.len() {
-            self.ch = NIL;
-        } else {
-            self.ch = self.input.chars().nth(self.read_position).unwrap()
-        }
-        self.position = self.read_position;
-        self.read_position += 1;
     }
 
     fn peek_char(&mut self) -> char {
