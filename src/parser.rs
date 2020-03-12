@@ -315,6 +315,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Box<dyn Expression>> {
+        println!("parse_prefix_expression: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
         self.next_token();
@@ -332,6 +333,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_infix_expression(&mut self, left: Box<dyn Expression>) -> Option<Box<dyn Expression>> {
+        println!("parse_infix_expression: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
 
@@ -353,6 +355,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_boolean(&mut self) -> Option<Box<dyn Expression>> {
+        println!("parse_boolean: {:?}", self.cur_token);
         Some(Box::new(Boolean {
             token: self.cur_token.clone(),
             value: self.cur_token_is(TokenType::TRUE),
@@ -360,6 +363,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_grouped_expression(&mut self) -> Option<Box<dyn Expression>> {
+        println!("parse_grouped_expression: {:?}", self.cur_token);
         self.next_token();
         let exp = self.parse_expression(Precedence::LOWEST);
         if !self.expect_peek(TokenType::RPAREN) {
@@ -370,6 +374,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_if_expression(&mut self) -> Option<Box<dyn Expression>> {
+        println!("parse_if_expression: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         if !self.expect_peek(TokenType::LPAREN) {
             return None;
@@ -412,6 +417,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_block_statement(&mut self) -> Option<BlockStatement> {
+        println!("parse_block_statement: {:?}", self.cur_token);
         let mut block = BlockStatement {
             token: self.cur_token.clone(),
             statements: Vec::new(),
@@ -433,6 +439,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_literal(&mut self) -> Option<Box<dyn Expression>> {
+        println!("parse_function_literal: {:?}", self.cur_token);
         let token = self.cur_token.clone();
         if !self.expect_peek(TokenType::LPAREN) {
             return None;
@@ -457,6 +464,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_parameters(&mut self) -> Vec<Identifier> {
+        println!("parse_function_parameters: {:?}", self.cur_token);
         let mut identfiers = Vec::new();
         if self.peek_token_is(TokenType::RPAREN) {
             self.next_token();
@@ -491,6 +499,7 @@ impl<'a> Parser<'a> {
         &mut self,
         function: Box<dyn Expression>,
     ) -> Option<Box<dyn Expression>> {
+        println!("parse_call_expression: {:?}", self.cur_token);
         let exp = CallExpression {
             token: self.cur_token.clone(),
             function: function,
@@ -500,6 +509,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_call_arguments(&mut self) -> Vec<Box<dyn Expression>> {
+        println!("parse_call_arguments: {:?}", self.cur_token);
         let mut args: Vec<Box<dyn Expression>> = Vec::new();
 
         if self.peek_token_is(TokenType::RPAREN) {

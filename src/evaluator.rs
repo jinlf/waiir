@@ -7,6 +7,7 @@ pub const FALSE: super::object::Boolean = super::object::Boolean { value: false 
 pub const NULL: super::object::Null = super::object::Null {};
 
 pub fn eval(node: &dyn Node, env: &mut Environment) -> Option<Box<dyn Object>> {
+    println!("eval: {:?}", node.string());
     let any_node = node.as_any();
     let program = any_node.downcast_ref::<Program>();
     if program.is_some() {
@@ -142,7 +143,7 @@ fn unwrap_return_value(obj: Option<Box<dyn Object>>) -> Option<Box<dyn Object>> 
         return obj;
     }
     match obj.as_ref().unwrap().as_any().downcast_ref::<ReturnValue>() {
-        Some(return_value) => Some(return_value.duplicate()),
+        Some(return_value) => Some(return_value.value.duplicate()),
         _ => obj,
     }
 }
@@ -165,6 +166,10 @@ fn eval_expression(
     exps: &Vec<Box<dyn Expression>>,
     env: &mut Environment,
 ) -> Vec<Option<Box<dyn Object>>> {
+    println!("eval_expression:");
+    for ee in exps.iter() {
+        println!("\t{:?}", ee);
+    }
     let mut result: Vec<Option<Box<dyn Object>>> = Vec::new();
     for e in exps.iter() {
         let evaluated = eval(e.as_node(), env);
@@ -184,6 +189,7 @@ fn is_error(obj: &Option<Box<dyn Object>>) -> bool {
 }
 
 fn eval_program(program: &Program, env: &mut Environment) -> Option<Box<dyn Object>> {
+    println!("eval_program: {:?}", program.string());
     let mut result: Option<Box<dyn Object>> = None;
     for statement in program.statements.iter() {
         result = eval(statement.as_node(), env);
@@ -212,6 +218,7 @@ fn eval_program(program: &Program, env: &mut Environment) -> Option<Box<dyn Obje
 }
 
 fn eval_block_statements(block: &BlockStatement, env: &mut Environment) -> Option<Box<dyn Object>> {
+    println!("eval_block_statements: {:?}", block.string());
     let mut result: Option<Box<dyn Object>> = None;
     for statement in block.statements.iter() {
         result = eval(statement.as_node(), env);
@@ -226,6 +233,7 @@ fn eval_block_statements(block: &BlockStatement, env: &mut Environment) -> Optio
 }
 
 fn eval_prefix_expression(operator: &str, right: Box<dyn Object>) -> Option<Box<dyn Object>> {
+    println!("eval_prefix_expression: {} {:?}", operator, right);
     match operator {
         "!" => eval_bang_operator_expression(right),
         "-" => eval_minus_prefix_operator_expression(right),
@@ -238,6 +246,7 @@ fn eval_prefix_expression(operator: &str, right: Box<dyn Object>) -> Option<Box<
 }
 
 fn eval_bang_operator_expression(right: Box<dyn Object>) -> Option<Box<dyn Object>> {
+    println!("eval_bang_operator_expression: {:?}", right);
     let v = right.as_any().downcast_ref::<super::object::Boolean>();
     match v {
         Some(t) => native_bool_to_boolean_object(!t.value),
@@ -259,6 +268,7 @@ fn native_bool_to_boolean_object(val: bool) -> Option<Box<dyn Object>> {
 }
 
 fn eval_minus_prefix_operator_expression(right: Box<dyn Object>) -> Option<Box<dyn Object>> {
+    println!("eval_minus_prefix_operator_expression: {:?}", right);
     if right.get_type() != ObjectType::IntegerObj {
         return Some(Box::new(new_error(format_args!(
             "unknown operator: -{}",
@@ -275,6 +285,7 @@ fn eval_infix_expression(
     left: Box<dyn Object>,
     right: Box<dyn Object>,
 ) -> Option<Box<dyn Object>> {
+    println!("eval_infix_expression: {} {:?} {:?}", operator, left, right);
     if left.get_type() == ObjectType::IntegerObj && right.get_type() == ObjectType::IntegerObj {
         return eval_integer_infix_expression(operator, left, right);
     }
@@ -302,6 +313,10 @@ fn eval_integer_infix_expression(
     left: Box<dyn Object>,
     right: Box<dyn Object>,
 ) -> Option<Box<dyn Object>> {
+    println!(
+        "eval_integer_infix_expression: {} {:?} {:?}",
+        operator, left, right
+    );
     let left_val = left.as_any().downcast_ref::<Integer>().unwrap().value;
     let right_val = right.as_any().downcast_ref::<Integer>().unwrap().value;
     match operator {
@@ -335,6 +350,10 @@ fn eval_boolean_infix_expression(
     left: Box<dyn Object>,
     right: Box<dyn Object>,
 ) -> Option<Box<dyn Object>> {
+    println!(
+        "eval_boolean_infix_expression: {} {:?} {:?}",
+        operator, left, right
+    );
     let left_val = left
         .as_any()
         .downcast_ref::<super::object::Boolean>()
@@ -358,6 +377,7 @@ fn eval_boolean_infix_expression(
 }
 
 fn eval_if_expression(ie: &IfExpression, env: &mut Environment) -> Option<Box<dyn Object>> {
+    println!("eval_if_expression: {:?}", ie.string());
     let condition = eval(ie.condition.as_node(), env);
     if condition.is_some() && is_error(&condition) {
         return Some(condition.unwrap());
@@ -396,6 +416,7 @@ fn new_error(args: std::fmt::Arguments<'_>) -> super::object::Error {
 }
 
 fn eval_identifier(node: &Identifier, env: &Environment) -> Option<Box<dyn Object>> {
+    println!("eval_identifier: {:?}", node.string());
     match env.get(&node.value) {
         Some(val) => Some(val.duplicate()),
         _ => Some(Box::new(new_error(format_args!(

@@ -8,6 +8,7 @@ pub struct Environment<'a> {
 }
 impl<'a> Environment<'a> {
     pub fn get(&self, name: &String) -> Option<&Box<dyn Object>> {
+        println!("env.get: {}", name);
         match self.store.get(name) {
             Some(obj) => Some(obj),
             _ => match self.outer {
@@ -17,6 +18,7 @@ impl<'a> Environment<'a> {
         }
     }
     pub fn set(&mut self, name: String, val: Box<dyn Object>) -> Option<&Box<dyn Object>> {
+        println!("env.set: {}, {:?}", name, val);
         match self.store.insert(name.clone(), val) {
             Some(_) => None,
             _ => self.get(&name),
