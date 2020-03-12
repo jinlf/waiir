@@ -1,36 +1,36 @@
 #[derive(Debug, PartialEq, Copy, Clone, Hash)]
 pub enum TokenType {
-    Illegal = 0,
-    Eof,
+    ILLEGAL = 0,
+    EOF,
     // Identifiers + literals
-    Ident, // add, foobar, x, y, ...
-    Int,
+    IDENT, // add, foobar, x, y, ...
+    INT,
     // Operators
-    Assign,
-    Plus,
-    Minus,
-    Bang,
-    Asterisk,
-    Slash,
-    Lt,
-    Gt,
+    ASSIGN,
+    PLUS,
+    MINUS,
+    BANG,
+    ASTERISK,
+    SLASH,
+    LT,
+    GT,
     // Delimiters
-    Comma,
-    Semicolon,
-    Lparen,
-    Rparen,
-    Lbrace,
-    Rbrace,
+    COMMA,
+    SEMICOLON,
+    LPAREN,
+    RPAREN,
+    LBRACE,
+    RBRACE,
     // Keywords
-    Function,
-    Let,
-    If,
-    Else,
-    True,
-    False,
-    Return,
-    Eq,
-    NotEq,
+    FUNCTION,
+    LET,
+    IF,
+    ELSE,
+    TRUE,
+    FALSE,
+    RETURN,
+    EQ,
+    NOTEQ,
 }
 impl std::cmp::Eq for TokenType {}
 
@@ -52,14 +52,14 @@ impl Token {
 
     fn lookup_ident(ident: &str) -> TokenType {
         match ident {
-            "fn" => TokenType::Function,
-            "let" => TokenType::Let,
-            "if" => TokenType::If,
-            "else" => TokenType::Else,
-            "return" => TokenType::Return,
-            "true" => TokenType::True,
-            "false" => TokenType::False,
-            _ => TokenType::Ident,
+            "fn" => TokenType::FUNCTION,
+            "let" => TokenType::LET,
+            "if" => TokenType::IF,
+            "else" => TokenType::ELSE,
+            "return" => TokenType::RETURN,
+            "true" => TokenType::TRUE,
+            "false" => TokenType::FALSE,
+            _ => TokenType::IDENT,
         }
     }
 }
@@ -107,65 +107,65 @@ impl<'a> Lexer<'a> {
                     let ch = self.peek_char();
                     if ch == '=' {
                         let tk = Token {
-                            tk_type: TokenType::Eq,
+                            tk_type: TokenType::EQ,
                             literal: format!("{}{}", self.ch, ch),
                         };
                         self.read_position += 1;
                         tk
                     } else {
-                        Token::new(TokenType::Assign, self.ch)
+                        Token::new(TokenType::ASSIGN, self.ch)
                     }
                 }
             }
-            ';' => tok = Token::new(TokenType::Semicolon, self.ch),
-            '(' => tok = Token::new(TokenType::Lparen, self.ch),
-            ')' => tok = Token::new(TokenType::Rparen, self.ch),
-            ',' => tok = Token::new(TokenType::Comma, self.ch),
-            '+' => tok = Token::new(TokenType::Plus, self.ch),
-            '-' => tok = Token::new(TokenType::Minus, self.ch),
+            ';' => tok = Token::new(TokenType::SEMICOLON, self.ch),
+            '(' => tok = Token::new(TokenType::LPAREN, self.ch),
+            ')' => tok = Token::new(TokenType::RPAREN, self.ch),
+            ',' => tok = Token::new(TokenType::COMMA, self.ch),
+            '+' => tok = Token::new(TokenType::PLUS, self.ch),
+            '-' => tok = Token::new(TokenType::MINUS, self.ch),
             '!' => {
                 tok = {
                     let ch = self.peek_char();
                     if ch == '=' {
                         let tk = Token {
-                            tk_type: TokenType::NotEq,
+                            tk_type: TokenType::NOTEQ,
                             literal: format!("{}{}", self.ch, ch),
                         };
                         self.read_position += 1;
                         tk
                     } else {
-                        Token::new(TokenType::Bang, self.ch)
+                        Token::new(TokenType::BANG, self.ch)
                     }
                 }
             }
-            '/' => tok = Token::new(TokenType::Slash, self.ch),
-            '*' => tok = Token::new(TokenType::Asterisk, self.ch),
-            '<' => tok = Token::new(TokenType::Lt, self.ch),
-            '>' => tok = Token::new(TokenType::Gt, self.ch),
-            '{' => tok = Token::new(TokenType::Lbrace, self.ch),
-            '}' => tok = Token::new(TokenType::Rbrace, self.ch),
+            '/' => tok = Token::new(TokenType::SLASH, self.ch),
+            '*' => tok = Token::new(TokenType::ASTERISK, self.ch),
+            '<' => tok = Token::new(TokenType::LT, self.ch),
+            '>' => tok = Token::new(TokenType::GT, self.ch),
+            '{' => tok = Token::new(TokenType::LBRACE, self.ch),
+            '}' => tok = Token::new(TokenType::RBRACE, self.ch),
             NIL => {
                 tok = Token {
-                    tk_type: TokenType::Eof,
+                    tk_type: TokenType::EOF,
                     literal: String::new(),
                 }
             }
             _ => {
                 if self.ch.is_ascii_alphabetic() {
                     tok = Token {
-                        tk_type: TokenType::Ident,
+                        tk_type: TokenType::IDENT,
                         literal: self.read_identifier(),
                     };
                     tok.tk_type = Token::lookup_ident(&tok.literal);
                     return tok; // need not read_char, show return now
                 } else if self.ch.is_ascii_digit() {
                     tok = Token {
-                        tk_type: TokenType::Int,
+                        tk_type: TokenType::INT,
                         literal: self.read_number(),
                     };
                     return tok; // need not read_char, show return now
                 } else {
-                    tok = Token::new(TokenType::Illegal, self.ch)
+                    tok = Token::new(TokenType::ILLEGAL, self.ch)
                 }
             }
         }

@@ -130,11 +130,11 @@ impl Object for Error {
 }
 
 #[derive(Debug)]
-pub struct Function {
+pub struct FUNCTION {
     pub function_literal: Box<&'static FunctionLiteral>,
     pub env: Box<&'static Environment<'static>>,
 }
-impl Object for Function {
+impl Object for FUNCTION {
     fn get_type(&self) -> ObjectType {
         ObjectType::FunctionObj
     }
@@ -156,7 +156,7 @@ impl Object for Function {
         self
     }
     fn duplicate(&self) -> Box<dyn Object> {
-        Box::new(Function {
+        Box::new(FUNCTION {
             function_literal: Box::new(*self.function_literal),
             env: Box::new(*self.env),
         })

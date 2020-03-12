@@ -223,8 +223,8 @@ fn test_function_object() {
     let evaluated = test_eval(input);
     let func = evaluated
         .as_any()
-        .downcast_ref::<Function>()
-        .expect(&format!("object is not Function. got={:?}", evaluated));
+        .downcast_ref::<FUNCTION>()
+        .expect(&format!("object is not FUNCTION. got={:?}", evaluated));
 
     assert!(
         func.function_literal.parameters.len() == 1,

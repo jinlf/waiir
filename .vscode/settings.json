@@ -7,4 +7,5 @@
     "rust-client.rlsPath": "~/.rustup/toolchains/stable-x86_64-apple-darwin/bin/rls",
     "editor.formatOnSave": true,
     "editor.detectIndentation": false,
+    "rust.build_on_save": true,
 }

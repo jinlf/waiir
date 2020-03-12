@@ -92,7 +92,7 @@ pub fn eval(node: &dyn Node, env: &mut Environment) -> Option<Box<dyn Object>> {
     let function_literal = any_node.downcast_ref::<FunctionLiteral>();
     if function_literal.is_some() {
         let func_lit = function_literal.unwrap();
-        return Some(Box::new(Function {
+        return Some(Box::new(FUNCTION {
             function_literal: Box::new(unsafe {
                 std::mem::transmute::<&FunctionLiteral, &'static FunctionLiteral>(func_lit)
             }),
@@ -122,7 +122,7 @@ fn apply_function(
     func: Box<dyn Object>,
     args: Vec<Option<Box<dyn Object>>>,
 ) -> Option<Box<dyn Object>> {
-    let function = func.as_any().downcast_ref::<Function>();
+    let function = func.as_any().downcast_ref::<FUNCTION>();
     if function.is_none() {
         return Some(Box::new(new_error(format_args!(
             "not a function: {}",
@@ -149,7 +149,7 @@ fn unwrap_return_value(obj: Option<Box<dyn Object>>) -> Option<Box<dyn Object>> 
 }
 
 fn extend_function_env(
-    func: &Function,
+    func: &FUNCTION,
     args: Vec<Option<Box<dyn Object>>>,
 ) -> Environment<'static> {
     let mut env = new_enclosed_environment(&func.env);

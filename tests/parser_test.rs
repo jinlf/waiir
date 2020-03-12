@@ -103,19 +103,19 @@ fn test_string() {
     let program = Program {
         statements: vec![Box::new(LetStatement {
             token: Token {
-                tk_type: TokenType::Let,
+                tk_type: TokenType::LET,
                 literal: String::from("let"),
             },
             name: Identifier {
                 token: Token {
-                    tk_type: TokenType::Ident,
+                    tk_type: TokenType::IDENT,
                     literal: String::from("myVar"),
                 },
                 value: String::from("myVar"),
             },
             value: Box::new(Identifier {
                 token: Token {
-                    tk_type: TokenType::Ident,
+                    tk_type: TokenType::IDENT,
                     literal: String::from("anotherVar"),
                 },
                 value: String::from("anotherVar"),
