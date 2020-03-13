@@ -27,11 +27,19 @@ impl Display for ObjectType {
     }
 }
 
-pub trait Object: Debug + Any {
+pub trait AsAny {
+    fn as_any(&self) -> &dyn Any;
+}
+
+pub trait Object: Debug + Any + AsAny {
     fn get_type(&self) -> ObjectType;
     fn inspect(&self) -> String;
-    fn as_any(&self) -> &dyn Any;
     fn duplicate(&self) -> Box<dyn Object>;
+}
+impl<T: Object> AsAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 #[derive(Debug)]
@@ -44,9 +52,6 @@ impl Object for Integer {
     }
     fn inspect(&self) -> String {
         format!("{}", self.value)
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
     fn duplicate(&self) -> Box<dyn Object> {
         Box::new(Integer { value: self.value })
@@ -64,9 +69,6 @@ impl Object for Boolean {
     fn inspect(&self) -> String {
         format!("{}", self.value)
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn duplicate(&self) -> Box<dyn Object> {
         Box::new(Boolean { value: self.value })
     }
@@ -80,9 +82,6 @@ impl Object for Null {
     }
     fn inspect(&self) -> String {
         String::from("null")
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
     fn duplicate(&self) -> Box<dyn Object> {
         Box::new(Null {})
@@ -99,9 +98,6 @@ impl Object for ReturnValue {
     }
     fn inspect(&self) -> String {
         self.value.inspect()
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
     fn duplicate(&self) -> Box<dyn Object> {
         Box::new(ReturnValue {
@@ -120,9 +116,6 @@ impl Object for Error {
     }
     fn inspect(&self) -> String {
         format!("ERROR: {}", self.message)
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
     fn duplicate(&self) -> Box<dyn Object> {
         Box::new(Error {
@@ -153,9 +146,6 @@ impl Object for Function {
         out.push_str(&self.function_literal.borrow().body.string());
         out.push_str("\n}");
         out
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
     fn duplicate(&self) -> Box<dyn Object> {
         Box::new(Function {
