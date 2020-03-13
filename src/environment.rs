@@ -1,23 +1,28 @@
 use super::object::*;
+use std::cell::*;
 use std::collections::HashMap;
+use std::rc::*;
 
 #[derive(Debug)]
-pub struct Environment<'a> {
+pub struct Environment {
     store: HashMap<String, Box<dyn Object>>,
-    outer: Option<&'a Environment<'a>>,
+    outer: RefCell<Weak<RefCell<Environment>>>,
 }
-impl<'a> Environment<'a> {
-    pub fn get(&self, name: &String) -> Option<&Box<dyn Object>> {
+impl Environment {
+    pub fn get(&self, name: &String) -> Option<Box<dyn Object>> {
         println!("env.get: {}", name);
         match self.store.get(name) {
-            Some(obj) => Some(obj),
-            _ => match self.outer {
-                Some(outer) => outer.get(name),
+            Some(obj) => {
+                let v: Box<dyn Object> = obj.duplicate();
+                Some(v)
+            }
+            _ => match self.outer.borrow().upgrade() {
+                Some(outer) => outer.borrow().get(name),
                 _ => None,
             },
         }
     }
-    pub fn set(&mut self, name: String, val: Box<dyn Object>) -> Option<&Box<dyn Object>> {
+    pub fn set(&mut self, name: String, val: Box<dyn Object>) -> Option<Box<dyn Object>> {
         println!("env.set: {}, {:?}", name, val);
         match self.store.insert(name.clone(), val) {
             Some(_) => None,
@@ -26,15 +31,16 @@ impl<'a> Environment<'a> {
     }
 }
 
-pub fn new_environment<'a>() -> Environment<'a> {
+pub fn new_environment() -> Environment {
     Environment {
         store: HashMap::new(),
-        outer: None,
+        outer: RefCell::new(Weak::new()),
     }
 }
 
-pub fn new_enclosed_environment<'a>(outer: &'a Environment) -> Environment<'a> {
-    let mut env = new_environment();
-    env.outer = Some(outer);
+pub fn new_enclosed_environment(outer: &Rc<RefCell<Environment>>) -> Environment {
+    let env = new_environment();
+    let rc = Rc::clone(outer);
+    *env.outer.borrow_mut() = Rc::downgrade(&rc);
     env
 }

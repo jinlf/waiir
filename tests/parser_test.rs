@@ -396,9 +396,9 @@ fn test_literal_expression(exp: &Box<dyn Expression>, expected: &Box<dyn Any>) {
 
 fn test_infix_expression(
     exp: &Box<dyn Expression>,
-    left: Box<dyn Any>,
+    left: Box<dyn Object>,
     operator: &str,
-    right: Box<dyn Any>,
+    right: Box<dyn Object>,
 ) {
     let op_exp = exp
         .as_any()

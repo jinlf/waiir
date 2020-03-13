@@ -1,7 +1,9 @@
 use super::ast::*;
 use super::environment::*;
 use std::any::Any;
+use std::cell::*;
 use std::fmt::*;
+use std::rc::*;
 
 #[derive(PartialEq)]
 pub enum ObjectType {
@@ -25,7 +27,7 @@ impl Display for ObjectType {
     }
 }
 
-pub trait Object: Debug {
+pub trait Object: Debug + Any {
     fn get_type(&self) -> ObjectType;
     fn inspect(&self) -> String;
     fn as_any(&self) -> &dyn Any;
@@ -130,25 +132,25 @@ impl Object for Error {
 }
 
 #[derive(Debug)]
-pub struct FUNCTION {
-    pub function_literal: Box<&'static FunctionLiteral>,
-    pub env: Box<&'static Environment<'static>>,
+pub struct Function {
+    pub function_literal: Rc<RefCell<FunctionLiteral>>,
+    pub env: Rc<RefCell<Environment>>,
 }
-impl Object for FUNCTION {
+impl Object for Function {
     fn get_type(&self) -> ObjectType {
         ObjectType::FunctionObj
     }
     fn inspect(&self) -> String {
         let mut out = String::new();
         let mut params: Vec<String> = Vec::new();
-        for p in self.function_literal.parameters.iter() {
+        for p in self.function_literal.borrow().parameters.iter() {
             params.push(p.string());
         }
         out.push_str("fn");
         out.push_str("(");
         out.push_str(&params.join(", "));
         out.push_str(") {\n");
-        out.push_str(&self.function_literal.body.string());
+        out.push_str(&self.function_literal.borrow().body.string());
         out.push_str("\n}");
         out
     }
@@ -156,9 +158,9 @@ impl Object for FUNCTION {
         self
     }
     fn duplicate(&self) -> Box<dyn Object> {
-        Box::new(FUNCTION {
-            function_literal: Box::new(*self.function_literal),
-            env: Box::new(*self.env),
+        Box::new(Function {
+            function_literal: Rc::new(*self.function_literal),
+            env: Rc::new(*self.env),
         })
     }
 }
