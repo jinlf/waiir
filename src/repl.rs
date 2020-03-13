@@ -2,11 +2,13 @@ use super::environment::*;
 use super::evaluator::*;
 use super::lexer::*;
 use super::parser::*;
+use std::cell::*;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::BufWriter;
 use std::io::Read;
 use std::io::Write;
+use std::rc::*;
 
 const PROMPT: &str = ">> ";
 const MONKEY_FACE: &str = r#"
@@ -25,7 +27,7 @@ const MONKEY_FACE: &str = r#"
 pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
     let mut reader = BufReader::new(input);
     let mut fmt = BufWriter::new(output);
-    let mut env = new_environment();
+    let env = Rc::new(RefCell::new(new_environment()));
     loop {
         fmt.write_fmt(format_args!("{}", PROMPT)).unwrap();
         fmt.flush().unwrap();
@@ -39,7 +41,7 @@ pub fn start(input: &mut dyn Read, output: &mut dyn Write) {
             continue;
         }
 
-        match eval(&program.unwrap(), &mut env) {
+        match eval(&program.unwrap(), &env) {
             Some(evaluated) => {
                 fmt.write_fmt(format_args!("{}\n", evaluated.inspect()))
                     .unwrap();

@@ -10,7 +10,7 @@ pub const TRUE: super::object::Boolean = super::object::Boolean { value: true };
 pub const FALSE: super::object::Boolean = super::object::Boolean { value: false };
 pub const NULL: super::object::Null = super::object::Null {};
 
-fn eval_statement(stmt: &dyn Statement, env: &mut Environment) -> Option<Box<dyn Object>> {
+fn eval_statement(stmt: &dyn Statement, env: &Rc<RefCell<Environment>>) -> Option<Box<dyn Object>> {
     println!("eval_statement: {:?}", stmt.string());
     if let Some(expression_stmt) = stmt.as_any().downcast_ref::<ExpressionStmt>() {
         return eval_expression(&*expression_stmt.expression, env);
@@ -31,13 +31,16 @@ fn eval_statement(stmt: &dyn Statement, env: &mut Environment) -> Option<Box<dyn
             if is_error(&val) {
                 return Some(val);
             }
-            env.set(let_stmt.name.value.clone(), val);
+            env.borrow_mut().set(let_stmt.name.value.clone(), val);
         }
     }
     None
 }
 
-fn eval_expression(exp: &dyn Expression, env: &mut Environment) -> Option<Box<dyn Object>> {
+fn eval_expression(
+    exp: &dyn Expression,
+    env: &Rc<RefCell<Environment>>,
+) -> Option<Box<dyn Object>> {
     println!("eval_expression: {:?}", exp.string());
     if let Some(integer_literal) = exp.as_any().downcast_ref::<IntegerLiteral>() {
         return Some(Box::new(Integer {
@@ -76,8 +79,8 @@ fn eval_expression(exp: &dyn Expression, env: &mut Environment) -> Option<Box<dy
     }
     if let Some(function_literal) = exp.as_any().downcast_ref::<FunctionLiteral>() {
         return Some(Box::new(Function {
-            function_literal: Rc::new(RefCell::new(*function_literal)),
-            env: Rc::new(RefCell::new(*env)),
+            function_literal: Rc::new(RefCell::new(function_literal)),
+            env: Rc::clone(env),
         }));
     }
     if let Some(call_exp) = exp.as_any().downcast_ref::<CallExpression>() {
@@ -96,7 +99,7 @@ fn eval_expression(exp: &dyn Expression, env: &mut Environment) -> Option<Box<dy
     }
     None
 }
-pub fn eval(node: &dyn Node, env: &mut Environment) -> Option<Box<dyn Object>> {
+pub fn eval(node: &dyn Node, env: &Rc<RefCell<Environment>>) -> Option<Box<dyn Object>> {
     println!("eval: {:?}", node.string());
     if let Some(program) = node.as_any().downcast_ref::<Program>() {
         return eval_program(program, env);
@@ -116,10 +119,10 @@ fn apply_function(
         ))));
     }
 
-    let mut extended_env = extend_function_env(function.unwrap(), args);
+    let extended_env = Rc::new(RefCell::new(extend_function_env(function.unwrap(), args)));
     let evaluated = eval_statement(
         &function.unwrap().function_literal.borrow().body,
-        &mut extended_env,
+        &extended_env,
     );
     return unwrap_return_value(evaluated);
 }
@@ -147,7 +150,7 @@ fn extend_function_env(func: &Function, args: Vec<Option<Box<dyn Object>>>) -> E
 
 fn eval_expressions(
     exps: &Vec<Box<dyn Expression>>,
-    env: &mut Environment,
+    env: &Rc<RefCell<Environment>>,
 ) -> Vec<Option<Box<dyn Object>>> {
     println!("eval_expressions:");
     for ee in exps.iter() {
@@ -168,7 +171,7 @@ fn is_error(node: &Box<dyn Object>) -> bool {
     node.get_type() == ObjectType::ErrorObj
 }
 
-fn eval_program(program: &Program, env: &mut Environment) -> Option<Box<dyn Object>> {
+fn eval_program(program: &Program, env: &Rc<RefCell<Environment>>) -> Option<Box<dyn Object>> {
     println!("eval_program: {:?}", program.string());
     let mut result: Option<Box<dyn Object>> = None;
     for statement in program.statements.iter() {
@@ -197,7 +200,10 @@ fn eval_program(program: &Program, env: &mut Environment) -> Option<Box<dyn Obje
     result
 }
 
-fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Option<Box<dyn Object>> {
+fn eval_block_statement(
+    block: &BlockStatement,
+    env: &Rc<RefCell<Environment>>,
+) -> Option<Box<dyn Object>> {
     println!("eval_block_statement: {:?}", block.string());
     let mut result: Option<Box<dyn Object>> = None;
     for statement in block.statements.iter() {
@@ -356,7 +362,10 @@ fn eval_boolean_infix_expression(
     }
 }
 
-fn eval_if_expression(ie: &IfExpression, env: &mut Environment) -> Option<Box<dyn Object>> {
+fn eval_if_expression(
+    ie: &IfExpression,
+    env: &Rc<RefCell<Environment>>,
+) -> Option<Box<dyn Object>> {
     println!("eval_if_expression: {:?}", ie.string());
     let condition = eval_expression(ie.condition.as_ref(), env);
     if condition.is_some() && is_error(&condition.as_ref().unwrap()) {
@@ -395,9 +404,9 @@ fn new_error(args: std::fmt::Arguments<'_>) -> super::object::Error {
     }
 }
 
-fn eval_identifier(node: &Identifier, env: &mut Environment) -> Option<Box<dyn Object>> {
+fn eval_identifier(node: &Identifier, env: &Rc<RefCell<Environment>>) -> Option<Box<dyn Object>> {
     println!("eval_identifier: {:?}", node.string());
-    match env.get(&node.value) {
+    match env.borrow().get(&node.value) {
         Some(val) => Some(val.duplicate()),
         _ => Some(Box::new(new_error(format_args!(
             "identifier not found: {}",

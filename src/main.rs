@@ -1,7 +1,10 @@
 include!("lib.rs");
 
+use std::cell::*;
+use std::rc::*;
+
 fn main() {
-    let mut env = environment::new_environment();
+    let env = Rc::new(RefCell::new(environment::new_environment()));
     let mut l = lexer::Lexer::new(
         //         "
         // let newAdder = fn(x) {
@@ -14,7 +17,7 @@ fn main() {
     );
     let mut p = parser::Parser::new(&mut l);
     let program = p.parse_program().unwrap();
-    let result = evaluator::eval(&program, &mut env);
+    let result = evaluator::eval(&program, &env);
     println!("{:#?}", result);
     println!("Hello! This is the Monkey programming language!");
     println!("Feel free to type in commands");

@@ -159,8 +159,8 @@ impl Object for Function {
     }
     fn duplicate(&self) -> Box<dyn Object> {
         Box::new(Function {
-            function_literal: Rc::new(*self.function_literal),
-            env: Rc::new(*self.env),
+            function_literal: Rc::clone(&self.function_literal),
+            env: Rc::clone(&self.env),
         })
     }
 }
